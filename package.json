@@ -1,7 +1,7 @@
 {
-	"name": "obsidian-sample-plugin",
-	"version": "1.0.0",
-	"description": "This is a sample plugin for Obsidian (https://obsidian.md)",
+	"name": "obsidian-memos-view",
+	"version": "0.1.0",
+	"description": "A flomo-inspired memos stream for Obsidian daily notes",
 	"main": "main.js",
 	"type": "module",
 	"scripts": {
