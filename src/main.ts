@@ -14,7 +14,7 @@ import { VIEW_TYPE_MEMOS } from "./types";
 import type { DailyNotesConfig, MemoEntry, MemosPluginSettings } from "./types";
 
 export default class MemosViewPlugin extends Plugin {
-	settings: MemosPluginSettings;
+	settings: MemosPluginSettings = DEFAULT_SETTINGS;
 	dailyNotesConfig: DailyNotesConfig | null = null;
 	private pendingBoundFileTimer: number | null = null;
 	private suppressedVaultRefreshUntil = new Map<string, number>();
@@ -294,6 +294,7 @@ export default class MemosViewPlugin extends Plugin {
 		const nextBlock = serializeMemoBlock(normalized, parsedBlock.timestampLabel, {
 			deletedAt: parsedBlock.deletedAt,
 			archivedAt: parsedBlock.archivedAt,
+			pinnedAt: parsedBlock.pinnedAt,
 		});
 		const nextBody = `${normalizedBody.slice(0, targetRange.start)}${nextBlock}${normalizedBody.slice(targetRange.end)}`.trim();
 		const nextFileContent = frontmatter
@@ -312,6 +313,10 @@ export default class MemosViewPlugin extends Plugin {
 
 	async archiveMemoEntry(memo: MemoEntry): Promise<void> {
 		await this.updateMemoStatus(memo, "archived", !memo.archivedAt);
+	}
+
+	async pinMemoEntry(memo: MemoEntry): Promise<void> {
+		await this.updateMemoStatus(memo, "pinned", !memo.pinnedAt);
 	}
 
 	async permanentlyDeleteMarkedMemos(memos: MemoEntry[]): Promise<void> {
@@ -393,6 +398,7 @@ export default class MemosViewPlugin extends Plugin {
 			{
 				deletedAt: parsedBlock.deletedAt,
 				archivedAt: parsedBlock.archivedAt,
+				pinnedAt: parsedBlock.pinnedAt,
 			},
 			key,
 			enabled ? createMemoStatusTimestamp() : null,

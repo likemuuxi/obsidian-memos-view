@@ -4,13 +4,14 @@ import type { MemoEntry } from "../types";
 const DATE_IN_FILE_NAME = /(\d{4})-(\d{2})-(\d{2})/;
 const TAG_PATTERN = /(^|\s)#([A-Za-z0-9_/-]+)/g;
 const TOP_LEVEL_LIST_ITEM_PATTERN = /^[-*+]\s+/m;
-const STATUS_MARKER_PATTERN = /\[(deleted|archived)::(\d{14})\]/gi;
+const STATUS_MARKER_PATTERN = /\[(deleted|archived|pinned)::(\d{14})\]/gi;
 
-export type MemoStatusKey = "deleted" | "archived";
+export type MemoStatusKey = "deleted" | "archived" | "pinned";
 
 export interface MemoStatusState {
 	deletedAt: string | null;
 	archivedAt: string | null;
+	pinnedAt: string | null;
 }
 
 export interface MemoBlockRange {
@@ -45,6 +46,7 @@ export function parseDailyNoteToMemos(file: TFile, content: string, timestampFor
 				createdAt,
 				deletedAt: parsedBlock.deletedAt,
 				archivedAt: parsedBlock.archivedAt,
+				pinnedAt: parsedBlock.pinnedAt,
 			};
 		})
 		.filter(
@@ -58,6 +60,7 @@ export function parseDailyNoteToMemos(file: TFile, content: string, timestampFor
 				createdAt: number;
 				deletedAt: string | null;
 				archivedAt: string | null;
+				pinnedAt: string | null;
 			} => Boolean(block),
 		);
 
@@ -75,6 +78,7 @@ export function parseDailyNoteToMemos(file: TFile, content: string, timestampFor
 		dayKey,
 		deletedAt: block.deletedAt,
 		archivedAt: block.archivedAt,
+		pinnedAt: block.pinnedAt,
 	}));
 }
 
@@ -220,6 +224,7 @@ export function parseMemoBlock(
 		content: parsedContent.content,
 		deletedAt: parsedContent.deletedAt,
 		archivedAt: parsedContent.archivedAt,
+		pinnedAt: parsedContent.pinnedAt,
 	};
 }
 
@@ -255,12 +260,22 @@ export function setMemoStatusValue(
 		return {
 			deletedAt: value,
 			archivedAt: status.archivedAt,
+			pinnedAt: status.pinnedAt,
+		};
+	}
+
+	if (key === "archived") {
+		return {
+			deletedAt: status.deletedAt,
+			archivedAt: value,
+			pinnedAt: status.pinnedAt,
 		};
 	}
 
 	return {
 		deletedAt: status.deletedAt,
-		archivedAt: value,
+		archivedAt: status.archivedAt,
+		pinnedAt: value,
 	};
 }
 
@@ -290,6 +305,7 @@ function stripMemoStatusMarkers(content: string): { content: string } & MemoStat
 	const status: MemoStatusState = {
 		deletedAt: null,
 		archivedAt: null,
+		pinnedAt: null,
 	};
 	const contentWithoutMarkers = content.replace(STATUS_MARKER_PATTERN, (_, rawKey: string, rawValue: string) => {
 		const key = rawKey.toLowerCase() as MemoStatusKey;
@@ -298,6 +314,9 @@ function stripMemoStatusMarkers(content: string): { content: string } & MemoStat
 		}
 		if (key === "archived") {
 			status.archivedAt = rawValue;
+		}
+		if (key === "pinned") {
+			status.pinnedAt = rawValue;
 		}
 		return "";
 	});
@@ -309,11 +328,15 @@ function stripMemoStatusMarkers(content: string): { content: string } & MemoStat
 			.trim(),
 		deletedAt: status.deletedAt,
 		archivedAt: status.archivedAt,
+		pinnedAt: status.pinnedAt,
 	};
 }
 
 function buildStatusMarkers(status: Partial<MemoStatusState>): string[] {
 	const markers: string[] = [];
+	if (status.pinnedAt) {
+		markers.push(`[pinned::${status.pinnedAt}]`);
+	}
 	if (status.archivedAt) {
 		markers.push(`[archived::${status.archivedAt}]`);
 	}

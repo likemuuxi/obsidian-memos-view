@@ -106,6 +106,11 @@ function matchesStatusFilter(memo: MemoEntry, statusFilter: MemosStatusFilter): 
 }
 
 function compareMemos(left: MemoEntry, right: MemoEntry, sortOrder: MemosSortOrder): number {
+	const pinnedCompare = Number(Boolean(right.pinnedAt)) - Number(Boolean(left.pinnedAt));
+	if (pinnedCompare !== 0) {
+		return pinnedCompare;
+	}
+
 	switch (sortOrder) {
 		case "created-asc":
 			return left.createdAt - right.createdAt;

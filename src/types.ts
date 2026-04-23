@@ -20,6 +20,7 @@ export interface MemoEntry {
 	dayKey: string;
 	deletedAt: string | null;
 	archivedAt: string | null;
+	pinnedAt: string | null;
 }
 
 export interface MemosViewState extends Record<string, unknown> {

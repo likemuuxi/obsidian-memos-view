@@ -16,6 +16,7 @@ import {
 	type WikilinkContext,
 	type WikilinkSuggestion,
 } from "./wikilink";
+import { openMemoShareModal } from "./share";
 
 const MEMOS_PAGE_SIZE = 50;
 
@@ -1044,6 +1045,10 @@ export class MemosView extends ItemView {
 		if (memo.deletedAt) {
 			this.renderStatusBadge(metaInfoEl, "Deleted", "trash-2");
 		}
+		if (memo.pinnedAt) {
+			this.renderStatusBadge(metaInfoEl, "Pinned", "pin");
+			cardEl.addClass("is-pinned");
+		}
 
 		const metaActionsEl = metaEl.createDiv({ cls: "memos-card-actions" });
 
@@ -1655,10 +1660,10 @@ export class MemosView extends ItemView {
 		const menu = new Menu();
 		menu.addItem((item) =>
 			item
-				.setTitle("Pin")
+				.setTitle(memo.pinnedAt ? "Unpin" : "Pin")
 				.setIcon("pin")
 				.onClick(() => {
-					new Notice("Pin support is coming soon.");
+					void this.togglePinMemo(memo);
 				}),
 		);
 		menu.addItem((item) =>
@@ -1681,6 +1686,7 @@ export class MemosView extends ItemView {
 			item
 				.setTitle(memo.deletedAt ? "Restore" : "Delete")
 				.setIcon(memo.deletedAt ? "rotate-ccw" : "trash")
+				.setWarning(!memo.deletedAt)
 				.onClick(() => {
 					void this.deleteMemo(memo);
 				}),
@@ -1706,15 +1712,8 @@ export class MemosView extends ItemView {
 		menu.showAtMouseEvent(event);
 	}
 
-	private async shareMemo(memo: MemoEntry): Promise<void> {
-		const shareText = `${memo.content}\n\n${memo.sourcePath}`;
-		try {
-			await navigator.clipboard.writeText(shareText);
-			new Notice("Memo copied to clipboard.");
-		} catch (error) {
-			console.error("Failed to copy memo content", error);
-			new Notice("Copy failed.");
-		}
+	private shareMemo(memo: MemoEntry): void {
+		openMemoShareModal(this.app, memo);
 	}
 
 	private async beginEditingMemo(memo: MemoEntry): Promise<void> {
@@ -1769,6 +1768,12 @@ export class MemosView extends ItemView {
 			this.inlineEditorValue = "";
 		}
 		new Notice(memo.archivedAt ? "Memo moved back to active." : "Memo archived.");
+		await this.render();
+	}
+
+	private async togglePinMemo(memo: MemoEntry): Promise<void> {
+		await this.plugin.pinMemoEntry(memo);
+		new Notice(memo.pinnedAt ? "Memo unpinned." : "Memo pinned.");
 		await this.render();
 	}
 
