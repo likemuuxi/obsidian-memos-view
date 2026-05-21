@@ -5,11 +5,17 @@ export interface TagStat {
 	count: number;
 }
 
+export interface HeatmapCellPreview {
+	time: string;
+	content: string;
+}
+
 export interface HeatmapCell {
 	dayKey: string;
 	count: number;
 	level: number;
 	isToday: boolean;
+	previews: HeatmapCellPreview[];
 }
 
 export interface HeatmapWeek {
@@ -30,6 +36,15 @@ export type MemosSortOrder =
 
 export type MemosStatusFilter = "all" | "active" | "archived" | "deleted";
 
+export type MemosViewFilter =
+	| "none"
+	| "today"
+	| "week"
+	| "todo"
+	| "tagged"
+	| "has-image"
+	| "has-link";
+
 export interface MemosViewModel {
 	filteredMemos: MemoEntry[];
 	tagStats: TagStat[];
@@ -47,6 +62,7 @@ export function buildViewModel(
 	activeDayKey: string | null,
 	sortOrder: MemosSortOrder,
 	statusFilter: MemosStatusFilter,
+	viewFilter: MemosViewFilter = "none",
 ): MemosViewModel {
 	const normalizedSearch = searchTerm.trim().toLowerCase();
 	const scopedMemos = memos.filter((memo) => matchesStatusFilter(memo, statusFilter));
@@ -59,7 +75,8 @@ export function buildViewModel(
 				memo.content.toLowerCase().includes(normalizedSearch) ||
 				memo.sourceBasename.toLowerCase().includes(normalizedSearch) ||
 				memo.tags.some((tag) => tag.toLowerCase().includes(normalizedSearch));
-			return matchesTag && matchesDay && matchesSearch;
+			const matchesView = matchesViewFilter(memo, viewFilter);
+			return matchesTag && matchesDay && matchesSearch && matchesView;
 		})
 		.sort((left, right) => compareMemos(left, right, sortOrder));
 
@@ -74,7 +91,15 @@ export function buildViewModel(
 	}
 
 	const heatmapMax = Math.max(...dayCounts.values(), 1);
-	const { heatmap, heatmapMonths } = buildHeatmap(dayCounts, heatmapMax);
+	const dayPreviews = new Map<string, HeatmapCellPreview[]>();
+	for (const memo of scopedMemos) {
+		const list = dayPreviews.get(memo.dayKey) ?? [];
+		if (list.length < 5) {
+			list.push({ time: memo.createdLabel, content: memo.content.trim() });
+		}
+		dayPreviews.set(memo.dayKey, list);
+	}
+	const { heatmap, heatmapMonths } = buildHeatmap(dayCounts, heatmapMax, dayPreviews);
 
 	const tagStats = [...tagCounts.entries()]
 		.map(([tag, count]) => ({ tag, count }))
@@ -105,6 +130,34 @@ function matchesStatusFilter(memo: MemoEntry, statusFilter: MemosStatusFilter): 
 	}
 }
 
+function matchesViewFilter(memo: MemoEntry, viewFilter: MemosViewFilter): boolean {
+	switch (viewFilter) {
+		case "today": {
+			const today = formatLocalDayKey(new Date());
+			return memo.dayKey === today;
+		}
+		case "week": {
+			const now = new Date();
+			const weekStart = startOfWeek(now);
+			const weekEnd = addDays(weekStart, 6);
+			const weekStartKey = formatLocalDayKey(weekStart);
+			const weekEndKey = formatLocalDayKey(weekEnd);
+			return memo.dayKey >= weekStartKey && memo.dayKey <= weekEndKey;
+		}
+		case "todo":
+			return /^[-*+]\s+\[[ xX]\]/m.test(memo.content);
+		case "tagged":
+			return memo.tags.length > 0;
+		case "has-image":
+			return /!\[\[.*?\]\]|!\[.*?\]\(.*?\)/.test(memo.content);
+		case "has-link":
+			return /\[.*?\]\(.*?\)|\[\[.*?\]\]/.test(memo.content);
+		case "none":
+		default:
+			return true;
+	}
+}
+
 function compareMemos(left: MemoEntry, right: MemoEntry, sortOrder: MemosSortOrder): number {
 	const pinnedCompare = Number(Boolean(right.pinnedAt)) - Number(Boolean(left.pinnedAt));
 	if (pinnedCompare !== 0) {
@@ -127,6 +180,7 @@ function compareMemos(left: MemoEntry, right: MemoEntry, sortOrder: MemosSortOrd
 function buildHeatmap(
 	dayCounts: Map<string, number>,
 	heatmapMax: number,
+	dayPreviews: Map<string, HeatmapCellPreview[]>,
 ): { heatmap: HeatmapWeek[]; heatmapMonths: HeatmapMonthLabel[] } {
 	const today = startOfDay(new Date());
 	const weekCount = 12;
@@ -149,6 +203,7 @@ function buildHeatmap(
 				count,
 				level: count > 0 ? Math.max(1, Math.ceil((count / heatmapMax) * 4)) : 0,
 				isToday: currentDate.getTime() === today.getTime(),
+				previews: dayPreviews.get(dayKey) ?? [],
 			});
 
 			if (currentDate.getDate() === 1 || (weekIndex === 0 && dayIndex === 0)) {

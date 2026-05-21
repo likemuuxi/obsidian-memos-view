@@ -1,12 +1,13 @@
 import { ItemView, MarkdownRenderer, Menu, Notice, WorkspaceLeaf, setIcon, type ViewStateResult } from "obsidian";
 import { Scope } from "obsidian";
 import type MemosViewPlugin from "../main";
-import { Modal, TFile, setTooltip } from "obsidian";
+import { Modal, TFile } from "obsidian";
 import { VIEW_TYPE_MEMOS } from "../types";
+import type { MemosViewFilter, MemosSortOrder, MemosStatusFilter } from "../memos/viewModel";
+import { t } from "../i18n";
 import type { MemoEntry, MemosViewState } from "../types";
 import { loadMemosFromDailyNotes } from "./memoStore";
 import { buildViewModel } from "./viewModel";
-import type { MemosSortOrder, MemosStatusFilter } from "./viewModel";
 import {
 	applyWikilinkSuggestion,
 	createBlockId,
@@ -43,6 +44,7 @@ export class MemosView extends ItemView {
 	private activeDayKey: string | null = null;
 	private sortOrder: MemosSortOrder = "created-desc";
 	private statusFilter: MemosStatusFilter = "all";
+	private viewFilter: MemosViewFilter = "none";
 	private visibleMemoCount = MEMOS_PAGE_SIZE;
 	private composerValue = "";
 	private isComposerExpanded = false;
@@ -50,6 +52,8 @@ export class MemosView extends ItemView {
 	private editingMemo: MemoEntry | null = null;
 	private inlineEditingMemoId: string | null = null;
 	private inlineEditorValue = "";
+	private sidebarEl: HTMLElement | null = null;
+	private sidebarOverlayEl: HTMLElement | null = null;
 
 	constructor(leaf: WorkspaceLeaf, plugin: MemosViewPlugin) {
 		super(leaf);
@@ -61,7 +65,7 @@ export class MemosView extends ItemView {
 	}
 
 	getDisplayText(): string {
-		return "Memos";
+		return t("view.displayName");
 	}
 
 	getIcon(): string {
@@ -144,6 +148,7 @@ export class MemosView extends ItemView {
 
 	async onClose(): Promise<void> {
 		this.contentEl.empty();
+		document.body.querySelectorAll(".memos-heatmap-preview").forEach((el) => el.remove());
 	}
 
 	async setState(state: MemosViewState, result: ViewStateResult): Promise<void> {
@@ -165,6 +170,16 @@ export class MemosView extends ItemView {
 		contentEl.empty();
 
 		const shellEl = contentEl.createDiv({ cls: "memos-shell" });
+		shellEl.addEventListener("click", (event) => {
+			if (!this.inlineEditingMemoId) {
+				return;
+			}
+			const target = event.target as HTMLElement | null;
+			if (target?.closest(".memos-inline-editor-body")) {
+				return;
+			}
+			this.cancelInlineEditing();
+		});
 		this.memos = await loadMemosFromDailyNotes(
 			this.app,
 			this.plugin.getDailyNotesFolder(),
@@ -178,7 +193,13 @@ export class MemosView extends ItemView {
 			this.activeDayKey,
 			this.sortOrder,
 			this.statusFilter,
+			this.viewFilter,
 		);
+
+		this.sidebarOverlayEl = shellEl.createDiv({ cls: "memos-sidebar-overlay" });
+		this.sidebarOverlayEl.addEventListener("click", () => {
+			this.closeSidebar();
+		});
 
 		const layoutEl = shellEl.createDiv({ cls: "memos-layout" });
 		this.renderSidebar(
@@ -203,6 +224,16 @@ export class MemosView extends ItemView {
 		this.bindMainInteractions(shellEl, composerEl, bodyEl, backToTopButtonEl);
 	}
 
+	private openSidebar(): void {
+		this.sidebarEl?.addClass("is-open");
+		this.sidebarOverlayEl?.addClass("is-visible");
+	}
+
+	private closeSidebar(): void {
+		this.sidebarEl?.removeClass("is-open");
+		this.sidebarOverlayEl?.removeClass("is-visible");
+	}
+
 	private renderSidebar(
 		parentEl: HTMLElement,
 		totalMemos: number,
@@ -210,24 +241,27 @@ export class MemosView extends ItemView {
 		totalDays: number,
 		heatmap: Array<{
 			key: string;
-			cells: Array<{ dayKey: string; count: number; level: number; isToday: boolean }>;
+			cells: Array<{ dayKey: string; count: number; level: number; isToday: boolean; previews: Array<{ time: string; content: string }> }>;
 		}>,
 		heatmapMonths: Array<{ label: string; column: number }>,
 		tagStats: Array<{ tag: string; count: number }>,
 		statusCounts: Record<MemosStatusFilter, number>,
 	): void {
 		const sidebarEl = parentEl.createDiv({ cls: "memos-sidebar" });
+		this.sidebarEl = sidebarEl;
+		sidebarEl.style.setProperty("--memos-heatmap-columns", String(heatmap.length));
 		sidebarEl.createEl("div", {
 			cls: "memos-brand",
 			text: this.plugin.settings.displayName || "memos",
 		});
 
 		const statsEl = sidebarEl.createDiv({ cls: "memos-stats" });
-		this.renderStat(statsEl, String(totalMemos), "Notes");
-		this.renderStat(statsEl, String(totalTags), "Tags");
-		this.renderStat(statsEl, String(totalDays), "Days");
+		this.renderStat(statsEl, String(totalMemos), t("view.notes"));
+		this.renderStat(statsEl, String(totalTags), t("view.tags"));
+		this.renderStat(statsEl, String(totalDays), t("view.days"));
 
 		const heatmapSectionEl = sidebarEl.createDiv({ cls: "memos-heatmap-section" });
+		const heatmapPreviewEl = document.body.createDiv({ cls: "memos-heatmap-preview" });
 		const heatmapGridEl = heatmapSectionEl.createDiv({ cls: "memos-heatmap-grid" });
 		heatmapGridEl.style.setProperty("--memos-heatmap-columns", String(heatmap.length));
 		heatmap.forEach((week) => {
@@ -242,15 +276,45 @@ export class MemosView extends ItemView {
 						"data-day-key": cell.dayKey,
 					},
 				});
-				setTooltip(cellEl, cell.dayKey, {
-					placement: "top",
-					delay: 120,
+				cellEl.addEventListener("mouseenter", async () => {
+					if (cell.count === 0) {
+						return;
+					}
+					heatmapPreviewEl.empty();
+					heatmapPreviewEl.createDiv({ cls: "memos-heatmap-preview-date", text: `${cell.dayKey} · ${cell.count}` });
+					for (const preview of cell.previews) {
+						const itemEl = heatmapPreviewEl.createDiv({ cls: "memos-heatmap-preview-item" });
+						itemEl.createDiv({ cls: "memos-heatmap-preview-time", text: preview.time });
+						const contentEl = itemEl.createDiv({ cls: "memos-heatmap-preview-content" });
+						await MarkdownRenderer.render(this.app, preview.content, contentEl, "", this);
+					}
+					const cellRect = cellEl.getBoundingClientRect();
+					const previewWidth = 280;
+					let left = cellRect.right + 8;
+					if (left + previewWidth > window.innerWidth) {
+						left = cellRect.left - previewWidth - 8;
+					}
+					if (left < 0) {
+						left = 4;
+					}
+					let top = cellRect.top;
+					if (top + 300 > window.innerHeight) {
+						top = window.innerHeight - 300;
+					}
+					heatmapPreviewEl.style.left = `${left}px`;
+					heatmapPreviewEl.style.top = `${top}px`;
+					heatmapPreviewEl.addClass("is-visible");
+				});
+				cellEl.addEventListener("mouseleave", () => {
+					heatmapPreviewEl.removeClass("is-visible");
 				});
 				cellEl.addEventListener("click", () => {
+					heatmapPreviewEl.removeClass("is-visible");
 					this.activeDayKey = this.activeDayKey === cell.dayKey ? null : cell.dayKey;
 					this.resetVisibleMemoCount();
 					this.updateHeatmapCellStates();
 					this.updateTitleDateState();
+					this.closeSidebar();
 					this.renderFilteredMemoStream();
 				});
 			});
@@ -266,7 +330,8 @@ export class MemosView extends ItemView {
 
 		const filtersEl = sidebarEl.createDiv({ cls: "memos-filters" });
 		this.renderStatusFilters(filtersEl, statusCounts);
-		filtersEl.createEl("div", { cls: "memos-filters-heading", text: "All tags" });
+		this.renderViewFilters(filtersEl);
+		filtersEl.createEl("div", { cls: "memos-filters-heading", text: t("view.allTags") });
 		const treeEl = filtersEl.createDiv({ cls: "memos-filter-tree" });
 		this.renderTagTree(treeEl, buildTagTree(tagStats), 0);
 	}
@@ -276,9 +341,65 @@ export class MemosView extends ItemView {
 		statusCounts: Record<MemosStatusFilter, number>,
 	): void {
 		const wrapEl = parentEl.createDiv({ cls: "memos-status-filters" });
-		this.createStatusFilterButton(wrapEl, "all", "All", "layers", statusCounts.all);
-		this.createStatusFilterButton(wrapEl, "archived", "Archived", "archive", statusCounts.archived);
-		this.createStatusFilterButton(wrapEl, "deleted", "Deleted", "trash-2", statusCounts.deleted);
+		this.createStatusFilterButton(wrapEl, "all", t("view.all"), "layers", statusCounts.all);
+		this.createStatusFilterButton(wrapEl, "archived", t("view.archived"), "archive", statusCounts.archived);
+		this.createStatusFilterButton(wrapEl, "deleted", t("view.deleted"), "trash-2", statusCounts.deleted);
+	}
+
+	private renderViewFilters(parentEl: HTMLElement): void {
+		parentEl.createEl("div", { cls: "memos-filters-heading", text: t("viewFilters.views") });
+		const wrapEl = parentEl.createDiv({ cls: "memos-view-filters" });
+		const filters: Array<{ id: MemosViewFilter; label: string; icon: string }> = [
+			{ id: "today", label: t("viewFilters.today"), icon: "sun" },
+			{ id: "week", label: t("viewFilters.week"), icon: "calendar-range" },
+			{ id: "todo", label: t("viewFilters.todo"), icon: "square-check" },
+			{ id: "tagged", label: t("viewFilters.tagged"), icon: "tag" },
+			{ id: "has-image", label: t("viewFilters.hasImage"), icon: "image" },
+			{ id: "has-link", label: t("viewFilters.hasLink"), icon: "link" },
+		];
+		for (const { id, label, icon } of filters) {
+			const buttonEl = wrapEl.createEl("button", {
+				cls: `memos-view-filter-button${this.viewFilter === id ? " is-active" : ""}`,
+				attr: {
+					type: "button",
+					"aria-pressed": String(this.viewFilter === id),
+					"data-view-filter": id,
+				},
+			});
+			const iconEl = buttonEl.createSpan({ cls: "memos-view-filter-icon" });
+			setIcon(iconEl, icon);
+			buttonEl.createSpan({ text: label });
+			buttonEl.addEventListener("click", () => {
+				this.viewFilter = this.viewFilter === id ? "none" : id;
+				this.resetVisibleMemoCount();
+				this.updateViewFilterButtonStates();
+				this.closeSidebar();
+				this.renderFilteredMemoStream();
+			});
+		}
+	}
+
+	private updateViewFilterButtonStates(): void {
+		this.sidebarEl?.querySelectorAll(".memos-view-filter-button").forEach((buttonEl) => {
+			if (!(buttonEl instanceof HTMLElement)) {
+				return;
+			}
+			const id = buttonEl.dataset.viewFilter as MemosViewFilter | undefined;
+			const isActive = id === this.viewFilter;
+			buttonEl.toggleClass("is-active", isActive);
+			buttonEl.setAttribute("aria-pressed", String(isActive));
+		});
+	}
+
+	private updateTagFilterButtonStates(): void {
+		this.sidebarEl?.querySelectorAll(".memos-filter-item").forEach((buttonEl) => {
+			if (!(buttonEl instanceof HTMLElement)) {
+				return;
+			}
+			const tagPath = buttonEl.dataset.tagPath;
+			const isActive = tagPath === this.activeTag;
+			buttonEl.toggleClass("is-active", isActive);
+		});
 	}
 
 	private createStatusFilterButton(
@@ -306,6 +427,7 @@ export class MemosView extends ItemView {
 			this.statusFilter = this.statusFilter === filter ? "active" : filter;
 			this.resetVisibleMemoCount();
 			this.updateStatusFilterButtonStates();
+			this.closeSidebar();
 			this.renderFilteredMemoStream();
 		});
 		if (filter === "deleted") {
@@ -344,6 +466,19 @@ export class MemosView extends ItemView {
 
 	private renderTopbar(parentEl: HTMLElement): HTMLInputElement {
 		const topbarEl = parentEl.createDiv({ cls: "memos-topbar" });
+
+		const sidebarToggleEl = topbarEl.createEl("button", {
+			cls: "memos-sidebar-toggle",
+			attr: {
+				type: "button",
+				"aria-label": t("view.toggleSidebar"),
+			},
+		});
+		setIcon(sidebarToggleEl, "panel-left");
+		sidebarToggleEl.addEventListener("click", () => {
+			this.openSidebar();
+		});
+
 		const titleEl = topbarEl.createDiv({ cls: "memos-title" });
 		this.renderTitleDateState(titleEl);
 
@@ -352,7 +487,7 @@ export class MemosView extends ItemView {
 			cls: "memos-topbar-icon-button",
 			attr: {
 				type: "button",
-				"aria-label": "Random walk",
+				"aria-label": t("view.randomWalk"),
 			},
 		});
 		setIcon(randomWalkButtonEl, "shuffle");
@@ -363,7 +498,7 @@ export class MemosView extends ItemView {
 		const searchEl = actionsEl.createEl("input", {
 			type: "search",
 			cls: "memos-search",
-			placeholder: "Search memos, files, tags",
+			placeholder: t("view.searchPlaceholder"),
 		});
 		searchEl.value = this.searchTerm;
 		searchEl.addEventListener("compositionstart", () => {
@@ -406,20 +541,20 @@ export class MemosView extends ItemView {
 			titleEl.createSpan({ cls: "memos-title-date-label", text: this.activeDayKey });
 		} else {
 			const homeButton = titleEl.createEl("button", {
-				cls: "memos-title-home",
+				cls: "memos-title-home is-icon",
 				attr: {
 					type: "button",
-					"aria-label": "Memos",
+					"aria-label": t("view.displayName"),
 				},
 			});
-			homeButton.setText(this.plugin.settings.displayName || "memos");
+			setIcon(homeButton, "house");
 		}
 
 		const sortButton = titleEl.createEl("button", {
 			cls: "memos-title-menu-button",
 			attr: {
 				type: "button",
-				"aria-label": `Choose sort order, current ${getSortLabel(this.sortOrder)}`,
+				"aria-label": `${t("view.sortOrderLabel")}, ${getSortLabel(this.sortOrder)}`,
 			},
 		});
 		const chevronEl = sortButton.createSpan({ cls: "memos-title-date-chevron" });
@@ -448,9 +583,14 @@ export class MemosView extends ItemView {
 		const editorWrapEl = composerEl.createDiv({ cls: "memos-composer-editor" });
 		const textareaEl = editorWrapEl.createEl("textarea", {
 			cls: "memos-composer-input",
-			placeholder: "Type your thoughts here...",
+			placeholder: t("view.composerPlaceholder"),
 		});
 		const wikilinkSuggestEl = editorWrapEl.createDiv({ cls: "memos-wikilink-suggest", attr: { hidden: "hidden" } });
+		const tagSuggestEl = editorWrapEl.createDiv({ cls: "memos-wikilink-suggest memos-tag-suggest", attr: { hidden: "hidden" } });
+		const selectionToolbar = editorWrapEl.createDiv({ cls: "memos-selection-toolbar" });
+		this.createSelectionToolbar(selectionToolbar, textareaEl, (value) => {
+			this.composerValue = value;
+		});
 		textareaEl.value = this.composerValue;
 		textareaEl.addEventListener("input", () => {
 			this.composerValue = textareaEl.value;
@@ -479,20 +619,15 @@ export class MemosView extends ItemView {
 				this.composerValue = value;
 			},
 		);
-
-		const statusEl = footerEl.createDiv({ cls: "memos-composer-status" });
-		statusEl.createEl("span", {
-			text: this.editingMemo
-				? `Editing: ${this.editingMemo.sourceBasename}`
-				: `Today: ${this.plugin.getTodayDailyNotePath()}`,
+		this.bindTextareaTagSuggest(textareaEl, tagSuggestEl, (value) => {
+			this.composerValue = value;
 		});
 
 		const submitButton = footerEl.createEl("button", {
 			cls: "memos-submit",
-			text: "",
+			text: t("view.saveMemo"),
 		});
-		setIcon(submitButton, "send");
-		submitButton.setAttribute("aria-label", "Save memo");
+		submitButton.setAttribute("aria-label", t("view.saveMemo"));
 		submitButton.addEventListener("click", async () => {
 			await this.saveComposerMemo();
 		});
@@ -506,15 +641,21 @@ export class MemosView extends ItemView {
 		const listEl = parentEl.createDiv({ cls: "memos-stream" });
 		if (!memos.length) {
 			const emptyEl = listEl.createDiv({ cls: "memos-empty" });
-			emptyEl.createEl("h3", { text: "No matching memos" });
+			emptyEl.createEl("h3", { text: t("view.noMatchingMemos") });
 			emptyEl.createEl("p", {
-				text: "Check your Daily notes setup, search keyword, or tag filter.",
+				text: t("view.noMatchingMemosDesc"),
 			});
 			return;
 		}
 
 		const visibleMemos = memos.slice(0, this.visibleMemoCount);
+		let lastDayKey = "";
 		visibleMemos.forEach((memo) => {
+			if (memo.dayKey !== lastDayKey) {
+				lastDayKey = memo.dayKey;
+				const dayHeadEl = listEl.createDiv({ cls: "memos-day-head" });
+				dayHeadEl.createSpan({ cls: "memos-day-head-label", text: formatReadableDay(memo.dayKey) });
+			}
 			void this.renderMemoCard(listEl, memo);
 		});
 
@@ -523,7 +664,7 @@ export class MemosView extends ItemView {
 			const remainingCount = memos.length - visibleMemos.length;
 			const loadMoreButtonEl = loadMoreWrapEl.createEl("button", {
 				cls: "memos-load-more-button",
-				text: `Load more (${remainingCount} remaining)`,
+				text: t("view.loadMore", remainingCount),
 				attr: {
 					type: "button",
 					"aria-label": `Load ${Math.min(MEMOS_PAGE_SIZE, remainingCount)} more memos`,
@@ -548,6 +689,7 @@ export class MemosView extends ItemView {
 			this.activeDayKey,
 			this.sortOrder,
 			this.statusFilter,
+			this.viewFilter,
 		);
 		this.renderMemoStream(this.memoStreamContainerEl, viewModel.filteredMemos);
 	}
@@ -593,7 +735,7 @@ export class MemosView extends ItemView {
 			cls: "memos-back-to-top",
 			attr: {
 				type: "button",
-				"aria-label": "Back to top",
+				"aria-label": t("view.backToTop"),
 			},
 		});
 		setIcon(buttonEl, "arrow-up");
@@ -652,39 +794,72 @@ export class MemosView extends ItemView {
 		textareaEl.style.height = `${Math.max(textareaEl.scrollHeight, 260)}px`;
 	}
 
+	private createSelectionToolbar(
+		toolbarEl: HTMLElement,
+		textareaEl: HTMLTextAreaElement,
+		onChange: (value: string) => void,
+	): void {
+		const actions: Array<{ icon: string; label: string; prefix: string; suffix: string }> = [
+			{ icon: "bold", label: t("view.boldSelection"), prefix: "**", suffix: "**" },
+			{ icon: "italic", label: t("view.italicSelection"), prefix: "*", suffix: "*" },
+			{ icon: "strikethrough", label: t("view.strikeSelection"), prefix: "~~", suffix: "~~" },
+		];
+		for (const { icon, label, prefix, suffix } of actions) {
+			const btn = toolbarEl.createEl("button", {
+				cls: "memos-selection-toolbar-button",
+				attr: { type: "button", "aria-label": label },
+			});
+			setIcon(btn, icon);
+			btn.addEventListener("mousedown", (event) => {
+				event.preventDefault();
+				this.toggleWrapSelection(textareaEl, prefix, suffix, onChange);
+				this.updateSelectionToolbar(toolbarEl, textareaEl);
+			});
+		}
+		const onSelectionChange = (): void => {
+			this.updateSelectionToolbar(toolbarEl, textareaEl);
+		};
+		textareaEl.addEventListener("select", onSelectionChange);
+		textareaEl.addEventListener("click", onSelectionChange);
+		textareaEl.addEventListener("keyup", onSelectionChange);
+		textareaEl.addEventListener("blur", () => {
+			toolbarEl.removeClass("is-visible");
+		});
+	}
+
+	private updateSelectionToolbar(toolbarEl: HTMLElement, textareaEl: HTMLTextAreaElement): void {
+		const start = textareaEl.selectionStart;
+		const end = textareaEl.selectionEnd;
+		if (start === end || document.activeElement !== textareaEl) {
+			toolbarEl.removeClass("is-visible");
+			return;
+		}
+		const charWidth = parseFloat(getComputedStyle(textareaEl).fontSize) * 0.55;
+		const lastLineStart = textareaEl.value.lastIndexOf("\n", start - 1) + 1;
+		const colOffset = start - lastLineStart;
+		const left = Math.min(colOffset * charWidth, textareaEl.clientWidth - 120);
+		toolbarEl.style.top = "-40px";
+		toolbarEl.style.left = `${Math.max(0, left)}px`;
+		toolbarEl.addClass("is-visible");
+	}
+
 	private createFormattingTools(
 		parentEl: HTMLElement,
 		textareaEl: HTMLTextAreaElement,
 		onChange: (value: string) => void,
 	): void {
-		this.createToolButton(parentEl, "at-sign", "Insert mention", () => {
-			this.insertIntoTextarea(textareaEl, "@", onChange);
+		this.createToolButton(parentEl, "square-check", t("view.insertTaskList"), () => {
+			this.toggleLinePrefix(textareaEl, "- [ ] ", onChange);
 		});
-		this.createToolButton(parentEl, "hash", "Insert tag", () => {
-			this.insertIntoTextarea(textareaEl, "#", onChange);
-		});
-		this.createToolButton(parentEl, "image", "Insert image", () => {
-			this.insertIntoTextarea(textareaEl, "\n![]()", onChange);
-		});
-		this.createToolDivider(parentEl);
-		this.createToolButton(parentEl, "bold", "Bold selection", () => {
-			this.toggleWrapSelection(textareaEl, "**", "**", onChange);
-		});
-		this.createToolButton(parentEl, "italic", "Italic selection", () => {
-			this.toggleWrapSelection(textareaEl, "*", "*", onChange);
-		});
-		this.createToolButton(parentEl, "strikethrough", "Strike selection", () => {
-			this.toggleWrapSelection(textareaEl, "~~", "~~", onChange);
-		});
-		this.createToolDivider(parentEl);
-		this.createToolButton(parentEl, "list", "Insert bullet list", () => {
+		this.createToolButton(parentEl, "list", t("view.insertBulletList"), () => {
 			this.toggleLinePrefix(textareaEl, "- ", onChange);
 		});
-		this.createToolButton(parentEl, "list-ordered", "Insert numbered list", () => {
+		this.createToolButton(parentEl, "list-ordered", t("view.insertNumberedList"), () => {
 			this.toggleOrderedList(textareaEl, onChange);
 		});
-		this.createToolButton(parentEl, "square-check", "Insert task list", () => {
-			this.toggleLinePrefix(textareaEl, "- [ ] ", onChange);
+		this.createToolDivider(parentEl);
+		this.createToolButton(parentEl, "image", t("view.insertImage"), () => {
+			this.insertIntoTextarea(textareaEl, "\n![]()", onChange);
 		});
 	}
 
@@ -693,20 +868,17 @@ export class MemosView extends ItemView {
 		text: string,
 		onChange?: (value: string) => void,
 	): void {
-		const start = textareaEl.selectionStart ?? textareaEl.value.length;
-		const end = textareaEl.selectionEnd ?? textareaEl.value.length;
-		const currentValue = textareaEl.value;
-		const nextValue = `${currentValue.slice(0, start)}${text}${currentValue.slice(end)}`;
-		textareaEl.value = nextValue;
-		if (onChange) {
-			onChange(nextValue);
-		} else {
-			this.composerValue = nextValue;
-		}
-		const nextCursor = start + text.length;
 		textareaEl.focus();
-		textareaEl.setSelectionRange(nextCursor, nextCursor);
-		textareaEl.dispatchEvent(new Event("input"));
+		textareaEl.setSelectionRange(
+			textareaEl.selectionStart ?? textareaEl.value.length,
+			textareaEl.selectionEnd ?? textareaEl.value.length,
+		);
+		document.execCommand("insertText", false, text);
+		if (onChange) {
+			onChange(textareaEl.value);
+		} else {
+			this.composerValue = textareaEl.value;
+		}
 	}
 
 	private async handleTextareaPaste(
@@ -734,10 +906,10 @@ export class MemosView extends ItemView {
 			const nextCursor = selectionStart + markdownLink.length;
 			textareaEl.setSelectionRange(nextCursor, nextCursor);
 			textareaEl.dispatchEvent(new Event("input", { bubbles: true }));
-			new Notice("Image saved and embedded.");
+			new Notice(t("notices.imageSaved"));
 		} catch (error) {
 			console.error("Failed to save pasted image", error);
-			new Notice("Failed to save pasted image.");
+			new Notice(t("notices.imageSaveFailed"));
 		}
 	}
 
@@ -808,36 +980,36 @@ export class MemosView extends ItemView {
 		const selectedText = currentValue.slice(start, end);
 		const before = currentValue.slice(Math.max(0, start - prefix.length), start);
 		const after = currentValue.slice(end, end + suffix.length);
-		let nextValue = currentValue;
+		let replacement = "";
 		let nextSelectionStart = start;
 		let nextSelectionEnd = end;
 
 		if (selectedText && before === prefix && after === suffix) {
-			nextValue =
-				`${currentValue.slice(0, start - prefix.length)}${selectedText}${currentValue.slice(end + suffix.length)}`;
+			textareaEl.setSelectionRange(start - prefix.length, end + suffix.length);
+			replacement = selectedText;
 			nextSelectionStart = start - prefix.length;
 			nextSelectionEnd = nextSelectionStart + selectedText.length;
 		} else if (selectedText.startsWith(prefix) && selectedText.endsWith(suffix)) {
 			const unwrapped = selectedText.slice(prefix.length, selectedText.length - suffix.length);
-			nextValue = `${currentValue.slice(0, start)}${unwrapped}${currentValue.slice(end)}`;
+			replacement = unwrapped;
 			nextSelectionStart = start;
 			nextSelectionEnd = start + unwrapped.length;
 		} else {
 			const targetText = selectedText || "text";
-			const formattedText = `${prefix}${targetText}${suffix}`;
-			nextValue = `${currentValue.slice(0, start)}${formattedText}${currentValue.slice(end)}`;
+			replacement = `${prefix}${targetText}${suffix}`;
 			nextSelectionStart = start + prefix.length;
 			nextSelectionEnd = nextSelectionStart + targetText.length;
 		}
-		textareaEl.value = nextValue;
-
-		if (onChange) {
-			onChange(nextValue);
-		}
 
 		textareaEl.focus();
+		textareaEl.setSelectionRange(start, end);
+		document.execCommand("insertText", false, replacement);
+
+		if (onChange) {
+			onChange(textareaEl.value);
+		}
+
 		textareaEl.setSelectionRange(nextSelectionStart, nextSelectionEnd);
-		textareaEl.dispatchEvent(new Event("input"));
 	}
 
 	private toggleLinePrefix(
@@ -857,13 +1029,13 @@ export class MemosView extends ItemView {
 		const formattedBlock = lines
 			.map((line) => (shouldRemove ? line.slice(prefix.length) : `${prefix}${line}`))
 			.join("\n");
-		const nextValue = `${currentValue.slice(0, lineStart)}${formattedBlock}${currentValue.slice(lineEnd)}`;
-		textareaEl.value = nextValue;
 
-		onChange?.(nextValue);
 		textareaEl.focus();
+		textareaEl.setSelectionRange(lineStart, lineEnd);
+		document.execCommand("insertText", false, formattedBlock);
+
+		onChange?.(textareaEl.value);
 		textareaEl.setSelectionRange(lineStart, lineStart + formattedBlock.length);
-		textareaEl.dispatchEvent(new Event("input"));
 	}
 
 	private toggleOrderedList(
@@ -883,13 +1055,13 @@ export class MemosView extends ItemView {
 		const formattedBlock = lines
 			.map((line, index) => (shouldRemove ? line.replace(orderedPattern, "") : `${index + 1}. ${line}`))
 			.join("\n");
-		const nextValue = `${currentValue.slice(0, lineStart)}${formattedBlock}${currentValue.slice(lineEnd)}`;
-		textareaEl.value = nextValue;
 
-		onChange?.(nextValue);
 		textareaEl.focus();
+		textareaEl.setSelectionRange(lineStart, lineEnd);
+		document.execCommand("insertText", false, formattedBlock);
+
+		onChange?.(textareaEl.value);
 		textareaEl.setSelectionRange(lineStart, lineStart + formattedBlock.length);
-		textareaEl.dispatchEvent(new Event("input"));
 	}
 
 	private bindMainInteractions(
@@ -973,6 +1145,9 @@ export class MemosView extends ItemView {
 
 			const button = rowEl.createEl("button", {
 				cls: `memos-filter-item memos-filter-item-tree ${this.activeTag === node.path ? "is-active" : ""}${node.count === 0 ? " is-branch" : ""}` ,
+				attr: {
+					"data-tag-path": node.path,
+				},
 			});
 			const labelEl = button.createSpan({ cls: "memos-filter-label" });
 			const iconEl = labelEl.createSpan({ cls: "memos-filter-icon" });
@@ -987,7 +1162,10 @@ export class MemosView extends ItemView {
 				this.activeTag = this.activeTag === node.path ? null : node.path;
 				this.expandTagAncestors(node.path);
 				this.resetVisibleMemoCount();
-				void this.render();
+				this.updateTagFilterButtonStates();
+				this.updateTitleDateState();
+				this.closeSidebar();
+				this.renderFilteredMemoStream();
 			});
 
 			if (node.count === 0) {
@@ -1029,13 +1207,14 @@ export class MemosView extends ItemView {
 			this.activeDayKey,
 			this.sortOrder,
 			this.statusFilter,
+			this.viewFilter,
 		).filteredMemos;
 	}
 
 	async startRandomWalk(): Promise<void> {
 		const randomWalkMemos = this.getFilteredMemos().filter((memo) => !memo.archivedAt && !memo.deletedAt);
 		if (!randomWalkMemos.length) {
-			new Notice("No active memos available for random walk in the current filter.");
+			new Notice(t("notices.noActiveMemosForRandomWalk"));
 			return;
 		}
 
@@ -1058,7 +1237,7 @@ export class MemosView extends ItemView {
 	private async purgeDeletedMemos(): Promise<void> {
 		const deletedMemos = this.memos.filter((memo) => Boolean(memo.deletedAt));
 		if (!deletedMemos.length) {
-			new Notice("No deleted memos to remove.");
+			new Notice(t("notices.noDeletedMemos"));
 			return;
 		}
 
@@ -1073,7 +1252,7 @@ export class MemosView extends ItemView {
 		if (this.statusFilter === "deleted") {
 			this.statusFilter = "all";
 		}
-		new Notice(`Permanently deleted ${deletedMemos.length} memos.`);
+		new Notice(t("notices.permanentlyDeleted", deletedMemos.length));
 		await this.render();
 	}
 
@@ -1081,7 +1260,7 @@ export class MemosView extends ItemView {
 		const menu = new Menu();
 		menu.addItem((item) =>
 			item
-				.setTitle(`Delete all`)
+				.setTitle(t("notices.deleteAll"))
 				.setIcon("trash")
 				.onClick(() => {
 					void this.purgeDeletedMemos();
@@ -1119,21 +1298,32 @@ export class MemosView extends ItemView {
 			void this.plugin.openSourceFileAtLine(memo.sourcePath, memo.sourceLine);
 		});
 		if (memo.archivedAt) {
-			this.renderStatusBadge(metaInfoEl, "Archived", "archive");
+			this.renderStatusBadge(metaInfoEl, t("view.archived"), "archive");
 		}
 		if (memo.deletedAt) {
-			this.renderStatusBadge(metaInfoEl, "Deleted", "trash-2");
+			this.renderStatusBadge(metaInfoEl, t("view.deleted"), "trash-2");
 		}
 		if (memo.pinnedAt) {
-			this.renderStatusBadge(metaInfoEl, "Pinned", "pin");
+			this.renderStatusBadge(metaInfoEl, t("view.pinned"), "pin");
 			cardEl.addClass("is-pinned");
 		}
 
 		const metaActionsEl = metaEl.createDiv({ cls: "memos-card-actions" });
 
+		const quoteButton = metaActionsEl.createEl("button", {
+			cls: "memos-menu-button",
+			attr: { "aria-label": t("view.quote"), type: "button" },
+		});
+		setIcon(quoteButton, "quote");
+		quoteButton.addEventListener("click", (event) => {
+			event.preventDefault();
+			event.stopPropagation();
+			this.quoteMemo(memo);
+		});
+
 		const menuButton = metaActionsEl.createEl("button", {
 			cls: "memos-menu-button",
-			attr: { "aria-label": "More actions", type: "button" },
+			attr: { "aria-label": t("view.moreActions"), type: "button" },
 		});
 		setIcon(menuButton, "ellipsis");
 		menuButton.addEventListener("click", (event) => {
@@ -1275,7 +1465,7 @@ export class MemosView extends ItemView {
 		const editorWrapEl = editorEl.createDiv({ cls: "memos-inline-editor-body" });
 		const textareaEl = editorWrapEl.createEl("textarea", {
 			cls: "memos-inline-editor-input",
-			placeholder: "Type your thoughts here...",
+			placeholder: t("view.composerPlaceholder"),
 		});
 		const wikilinkSuggestEl = editorWrapEl.createDiv({ cls: "memos-wikilink-suggest", attr: { hidden: "hidden" } });
 		textareaEl.value = this.inlineEditorValue;
@@ -1311,7 +1501,7 @@ export class MemosView extends ItemView {
 
 		const cancelButton = actionsEl.createEl("button", {
 			cls: "memos-inline-editor-cancel",
-			text: "Cancel",
+			text: t("view.cancel"),
 			attr: { type: "button" },
 		});
 		cancelButton.addEventListener("click", () => {
@@ -1320,9 +1510,9 @@ export class MemosView extends ItemView {
 
 		const submitButton = actionsEl.createEl("button", {
 			cls: "memos-inline-editor-submit",
-			attr: { "aria-label": "Save memo", type: "button" },
+			text: t("view.saveMemo"),
+			attr: { "aria-label": t("view.saveMemo"), type: "button" },
 		});
-		setIcon(submitButton, "send");
 		submitButton.addEventListener("click", async () => {
 			await this.saveInlineEditedMemo(memo);
 		});
@@ -1458,12 +1648,12 @@ export class MemosView extends ItemView {
 				const typeEl = itemEl.createSpan({ cls: "memos-wikilink-suggest-type" });
 				typeEl.setText(
 					item.type === "file"
-						? "File"
+						? t("view.wikilinkFile")
 						: item.type === "heading"
-							? "Heading"
+							? t("view.wikilinkHeading")
 							: item.type === "paragraph"
-								? "Paragraph"
-								: "Block",
+								? t("view.wikilinkParagraph")
+								: t("view.wikilinkBlock"),
 				);
 
 				const contentEl = itemEl.createSpan({ cls: "memos-wikilink-suggest-content" });
@@ -1610,13 +1800,13 @@ export class MemosView extends ItemView {
 	): Promise<string | null> {
 		const file = this.app.vault.getAbstractFileByPath(item.path);
 		if (!(file instanceof TFile)) {
-			new Notice("Source file no longer exists.");
+			new Notice(t("notices.sourceFileNoLongerExists"));
 			return null;
 		}
 
 		const rawContent = (await this.app.vault.cachedRead(file)).replace(/\r\n/g, "\n");
 		if (item.appendOffset < 0 || item.appendOffset > rawContent.length) {
-			new Notice("Could not locate the selected paragraph.");
+			new Notice(t("notices.couldNotLocateParagraph"));
 			return null;
 		}
 
@@ -1752,11 +1942,124 @@ export class MemosView extends ItemView {
 		};
 	}
 
+	private bindTextareaTagSuggest(
+		textareaEl: HTMLTextAreaElement,
+		panelEl: HTMLElement,
+		onChange: (value: string) => void,
+	): void {
+		let selectedIndex = 0;
+		let matchingTags: string[] = [];
+		let tagStart = -1;
+		let isComposing = false;
+
+		const getTags = (): string[] => [...new Set(this.memos.flatMap((m) => m.tags))].sort();
+
+		const hidePanel = (): void => {
+			matchingTags = [];
+			selectedIndex = 0;
+			tagStart = -1;
+			panelEl.empty();
+			panelEl.setAttr("hidden", "hidden");
+		};
+
+		const updatePanel = (): void => {
+			panelEl.empty();
+			if (!matchingTags.length) {
+				hidePanel();
+				return;
+			}
+			panelEl.removeAttribute("hidden");
+			this.positionWikilinkSuggestPanel(textareaEl, panelEl);
+			matchingTags.forEach((tag, index) => {
+				const itemEl = panelEl.createEl("button", {
+					cls: `memos-tag-suggest-item${index === selectedIndex ? " is-selected" : ""}`,
+					attr: { type: "button" },
+				});
+				itemEl.createSpan({ cls: "memos-tag-suggest-hash", text: "#" });
+				itemEl.createSpan({ cls: "memos-tag-suggest-name", text: tag.slice(1) });
+				itemEl.addEventListener("mousedown", (event) => {
+					event.preventDefault();
+					applyTag(tag);
+				});
+			});
+		};
+
+		const applyTag = (tag: string): void => {
+			if (tagStart < 0) {
+				return;
+			}
+			const before = textareaEl.value.slice(0, tagStart);
+			const after = textareaEl.value.slice(textareaEl.selectionStart ?? tagStart);
+			const replacement = `${tag} `;
+			textareaEl.focus();
+			textareaEl.setSelectionRange(tagStart, textareaEl.selectionStart ?? tagStart);
+			document.execCommand("insertText", false, replacement);
+			onChange(textareaEl.value);
+			hidePanel();
+		};
+
+		const handleInput = (): void => {
+			if (isComposing) {
+				return;
+			}
+			const cursor = textareaEl.selectionStart ?? 0;
+			const textBefore = textareaEl.value.slice(0, cursor);
+			const hashMatch = textBefore.match(/(^|\s)#([\p{L}\p{N}_/-]*)$/u);
+			if (!hashMatch) {
+				hidePanel();
+				return;
+			}
+			const query = hashMatch[2] ?? "";
+			tagStart = cursor - query.length - 1;
+			const allTags = getTags();
+			matchingTags = query
+				? allTags.filter((tag) => tag.toLowerCase().includes(query)).slice(0, 8)
+				: allTags.slice(0, 8);
+			selectedIndex = 0;
+			updatePanel();
+		};
+
+		textareaEl.addEventListener("input", handleInput);
+		textareaEl.addEventListener("compositionstart", () => {
+			isComposing = true;
+		});
+		textareaEl.addEventListener("compositionend", () => {
+			isComposing = false;
+			handleInput();
+		});
+		textareaEl.addEventListener("keydown", (event) => {
+			if (panelEl.hasAttribute("hidden") || !matchingTags.length) {
+				return;
+			}
+			if (event.key === "ArrowDown") {
+				event.preventDefault();
+				selectedIndex = (selectedIndex + 1) % matchingTags.length;
+				updatePanel();
+			} else if (event.key === "ArrowUp") {
+				event.preventDefault();
+				selectedIndex = (selectedIndex - 1 + matchingTags.length) % matchingTags.length;
+				updatePanel();
+			} else if (event.key === "Enter" || event.key === "Tab") {
+				event.preventDefault();
+				if (matchingTags[selectedIndex]) {
+					applyTag(matchingTags[selectedIndex]!);
+				}
+			} else if (event.key === "Escape") {
+				event.preventDefault();
+				event.stopPropagation();
+				hidePanel();
+			}
+		});
+		textareaEl.addEventListener("blur", () => {
+			hidePanel();
+		});
+	}
+
 	private openMemoMenu(event: MouseEvent, memo: MemoEntry, anchorEl: HTMLElement): void {
 		const menu = new Menu();
 		menu.addItem((item) =>
 			item
-				.setTitle(memo.pinnedAt ? "Unpin" : "Pin")
+				.setTitle(memo.pinnedAt ? t("view.unpin") : t("view.pin"))
 				.setIcon("pin")
 				.onClick(() => {
 					void this.togglePinMemo(memo);
@@ -1764,7 +2067,7 @@ export class MemosView extends ItemView {
 		);
 		menu.addItem((item) =>
 			item
-				.setTitle("Edit")
+				.setTitle(t("view.edit"))
 				.setIcon("pencil")
 				.onClick(() => {
 					void this.beginInlineEditingMemo(memo);
@@ -1772,7 +2075,7 @@ export class MemosView extends ItemView {
 		);
 		menu.addItem((item) =>
 			item
-				.setTitle(memo.archivedAt ? "Unarchive" : "Archive")
+				.setTitle(memo.archivedAt ? t("view.unarchive") : t("view.archive"))
 				.setIcon("archive")
 				.onClick(() => {
 					void this.toggleArchiveMemo(memo);
@@ -1780,7 +2083,7 @@ export class MemosView extends ItemView {
 		);
 		menu.addItem((item) =>
 			item
-				.setTitle(memo.deletedAt ? "Restore" : "Delete")
+				.setTitle(memo.deletedAt ? t("view.restore") : t("view.delete"))
 				.setIcon(memo.deletedAt ? "rotate-ccw" : "trash")
 				.setWarning(!memo.deletedAt)
 				.onClick(() => {
@@ -1790,7 +2093,7 @@ export class MemosView extends ItemView {
 		menu.addSeparator();
 		menu.addItem((item) =>
 			item
-				.setTitle("Share")
+				.setTitle(t("view.share"))
 				.setIcon("share")
 				.onClick(() => {
 					void this.shareMemo(memo);
@@ -1851,7 +2154,7 @@ export class MemosView extends ItemView {
 
 	private async saveComposerMemo(): Promise<void> {
 		if (!this.composerValue.trim()) {
-			new Notice("Write something first.");
+			new Notice(t("notices.writeSomethingFirst"));
 			return;
 		}
 
@@ -1865,10 +2168,10 @@ export class MemosView extends ItemView {
 
 		if (memoBeingEdited) {
 			await this.plugin.updateMemoEntry(memoBeingEdited, content, { refresh: false });
-			new Notice("Memo updated.");
+			new Notice(t("notices.memoUpdated"));
 		} else {
 			await this.plugin.appendMemoToToday(content, { refresh: false });
-			new Notice("Saved to today's daily note.");
+			new Notice(t("notices.savedToToday"));
 		}
 
 		await this.refreshMemoStream();
@@ -1886,15 +2189,9 @@ export class MemosView extends ItemView {
 		}
 	}
 
-	private cancelInlineEditing(): void {
-		this.inlineEditingMemoId = null;
-		this.inlineEditorValue = "";
-		this.renderFilteredMemoStream();
-	}
-
 	private async saveInlineEditedMemo(memo: MemoEntry): Promise<void> {
 		if (!this.inlineEditorValue.trim()) {
-			new Notice("Write something first.");
+			new Notice(t("notices.writeSomethingFirst"));
 			return;
 		}
 
@@ -1902,8 +2199,17 @@ export class MemosView extends ItemView {
 		this.inlineEditingMemoId = null;
 		this.inlineEditorValue = "";
 		await this.plugin.updateMemoEntry(memo, content, { refresh: false });
-		new Notice("Memo updated.");
+		new Notice(t("notices.memoUpdated"));
 		await this.refreshMemoStream();
+	}
+
+	private cancelInlineEditing(): void {
+		if (!this.inlineEditingMemoId) {
+			return;
+		}
+		this.inlineEditingMemoId = null;
+		this.inlineEditorValue = "";
+		this.renderFilteredMemoStream();
 	}
 
 	private renderStatusBadge(parentEl: HTMLElement, label: string, icon: string): void {
@@ -1919,14 +2225,27 @@ export class MemosView extends ItemView {
 			this.inlineEditingMemoId = null;
 			this.inlineEditorValue = "";
 		}
-		new Notice(memo.archivedAt ? "Memo moved back to active." : "Memo archived.");
+		new Notice(memo.archivedAt ? t("notices.memoUnarchived") : t("notices.memoArchived"));
 		await this.refreshMemoStream();
 	}
 
 	private async togglePinMemo(memo: MemoEntry): Promise<void> {
 		await this.plugin.pinMemoEntry(memo, { refresh: false });
-		new Notice(memo.pinnedAt ? "Memo unpinned." : "Memo pinned.");
+		new Notice(memo.pinnedAt ? t("notices.memoUnpinned") : t("notices.memoPinned"));
 		await this.refreshMemoStream();
+	}
+
+	private quoteMemo(memo: MemoEntry): void {
+		const lines = memo.content.trim().split("\n");
+		const quoted = lines.map((line) => `> ${line}`).join("\n");
+		const block = `> [!quote] ${memo.dayKey} ${memo.createdLabel}\n> \n${quoted}`;
+		this.composerValue = this.composerValue ? `${this.composerValue}\n\n${block}\n` : `${block}\n`;
+		const textareaEl = this.contentEl.querySelector(".memos-composer-input") as HTMLTextAreaElement | null;
+		if (textareaEl) {
+			textareaEl.value = this.composerValue;
+			textareaEl.focus();
+			textareaEl.setSelectionRange(this.composerValue.length, this.composerValue.length);
+		}
 	}
 
 	private async deleteMemo(memo: MemoEntry): Promise<void> {
@@ -1935,7 +2254,7 @@ export class MemosView extends ItemView {
 			this.inlineEditingMemoId = null;
 			this.inlineEditorValue = "";
 		}
-		new Notice(memo.deletedAt ? "Memo restored." : "Memo marked as deleted.");
+		new Notice(memo.deletedAt ? t("notices.memoRestored") : t("notices.memoDeleted"));
 		await this.refreshMemoStream();
 	}
 }
@@ -1965,7 +2284,7 @@ class MemosRandomWalkModal extends Modal {
 	private async showRandomMemo(): Promise<void> {
 		const nextMemo = this.pickRandomMemo();
 		if (!nextMemo) {
-			new Notice("No memos available for random walk in the current filter.");
+			new Notice(t("notices.noMemosForRandomWalk"));
 			this.close();
 			return;
 		}
@@ -2002,15 +2321,10 @@ class MemosRandomWalkModal extends Modal {
 		this.contentEl.empty();
 
 		const shellEl = this.contentEl.createDiv({ cls: "memos-random-walk-shell" });
-		const orbitEl = shellEl.createDiv({ cls: "memos-random-walk-orbit" });
-		orbitEl.createDiv({ cls: "memos-random-walk-orbit-dot is-one" });
-		orbitEl.createDiv({ cls: "memos-random-walk-orbit-dot is-two" });
-		orbitEl.createDiv({ cls: "memos-random-walk-orbit-dot is-three" });
 
-		const cardEl = shellEl.createDiv({ cls: "memos-random-walk-card" });
-		const headerEl = cardEl.createDiv({ cls: "memos-random-walk-header" });
+		const headerEl = shellEl.createDiv({ cls: "memos-random-walk-header" });
 		const eyebrowEl = headerEl.createDiv({ cls: "memos-random-walk-eyebrow" });
-		eyebrowEl.createSpan({ text: "Random walk" });
+		eyebrowEl.createSpan({ text: t("view.randomWalk") });
 		eyebrowEl.createSpan({ cls: "memos-random-walk-slash", text: "/" });
 		eyebrowEl.createSpan({ text: memo.dayKey });
 
@@ -2019,7 +2333,7 @@ class MemosRandomWalkModal extends Modal {
 		const titleActionsEl = titleRowEl.createDiv({ cls: "memos-random-walk-title-actions" });
 		const openFileButtonEl = titleActionsEl.createEl("button", {
 			cls: "memos-random-walk-next",
-			attr: { type: "button", "aria-label": "Open source file" },
+			attr: { type: "button", "aria-label": t("view.openSourceFile") },
 		});
 		setIcon(openFileButtonEl, "file-edit");
 		openFileButtonEl.addEventListener("click", () => {
@@ -2027,30 +2341,30 @@ class MemosRandomWalkModal extends Modal {
 		});
 		const shuffleButtonEl = titleActionsEl.createEl("button", {
 			cls: "memos-random-walk-next",
-			attr: { type: "button", "aria-label": "Next random memo" },
+			attr: { type: "button", "aria-label": t("view.nextRandomMemo") },
 		});
 		setIcon(shuffleButtonEl, "shuffle");
 		shuffleButtonEl.addEventListener("click", () => {
 			void this.showRandomMemo();
 		});
 
-		const metaEl = cardEl.createDiv({ cls: "memos-random-walk-meta" });
+		const metaEl = shellEl.createDiv({ cls: "memos-random-walk-meta" });
 		this.createMetaPill(metaEl, "clock-3", memo.createdLabel);
 		if (memo.archivedAt) {
-			this.createMetaPill(metaEl, "archive", "Archived");
+			this.createMetaPill(metaEl, "archive", t("view.archived"));
 		}
 		if (memo.deletedAt) {
-			this.createMetaPill(metaEl, "trash-2", "Deleted");
+			this.createMetaPill(metaEl, "trash-2", t("view.deleted"));
 		}
 		memo.tags.slice(0, 6).forEach((tag) => {
 			this.createMetaPill(metaEl, "hash", tag.replace(/^#/, ""));
 		});
 
-		const bodyEl = cardEl.createDiv({ cls: "memos-random-walk-body markdown-rendered" });
+		const bodyEl = shellEl.createDiv({ cls: "memos-random-walk-body markdown-rendered" });
 		await MarkdownRenderer.render(this.app, memo.content, bodyEl, memo.sourcePath, this.view);
 		this.view.bindRenderedInternalLinks(bodyEl, memo.sourcePath);
 
-		const footerEl = cardEl.createDiv({ cls: "memos-random-walk-footer" });
+		const footerEl = shellEl.createDiv({ cls: "memos-random-walk-footer" });
 		const sourceInfoEl = footerEl.createDiv({ cls: "memos-random-walk-source" });
 		sourceInfoEl.createSpan({ text: memo.sourcePath });
 	}
@@ -2082,26 +2396,49 @@ function createLocalTimestampForFileName(date: Date): string {
 	return `${year}${month}${day}${hours}${minutes}${seconds}`;
 }
 
+const WEEKDAY_NAMES_EN = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+const WEEKDAY_NAMES_ZH = ["星期日", "星期一", "星期二", "星期三", "星期四", "星期五", "星期六"];
+
+function formatReadableDay(dayKey: string): string {
+	const today = new Date();
+	const todayKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+	const yesterday = new Date(today);
+	yesterday.setDate(yesterday.getDate() - 1);
+	const yesterdayKey = `${yesterday.getFullYear()}-${String(yesterday.getMonth() + 1).padStart(2, "0")}-${String(yesterday.getDate()).padStart(2, "0")}`;
+
+	if (dayKey === todayKey) {
+		return t("view.dayToday");
+	}
+	if (dayKey === yesterdayKey) {
+		return t("view.dayYesterday");
+	}
+
+	const date = new Date(`${dayKey}T00:00:00`);
+	const weekdays = t("view.dayToday") === "今天" ? WEEKDAY_NAMES_ZH : WEEKDAY_NAMES_EN;
+	const weekday = weekdays[date.getDay()] ?? "";
+	return t("view.dayLabel", dayKey, weekday);
+}
+
 function getSortMenuItems(): Array<{ title: string; value: MemosSortOrder; icon: string }> {
 	return [
-		{ title: "Created time, newest first", value: "created-desc", icon: "arrow-down-wide-narrow" },
-		{ title: "Created time, oldest first", value: "created-asc", icon: "arrow-up-narrow-wide" },
-		{ title: "Edited time, newest first", value: "updated-desc", icon: "arrow-down-wide-narrow" },
-		{ title: "Edited time, oldest first", value: "updated-asc", icon: "arrow-up-narrow-wide" },
+		{ title: t("view.sortCreatedDesc"), value: "created-desc", icon: "arrow-down-wide-narrow" },
+		{ title: t("view.sortCreatedAsc"), value: "created-asc", icon: "arrow-up-narrow-wide" },
+		{ title: t("view.sortUpdatedDesc"), value: "updated-desc", icon: "arrow-down-wide-narrow" },
+		{ title: t("view.sortUpdatedAsc"), value: "updated-asc", icon: "arrow-up-narrow-wide" },
 	];
 }
 
 function getSortLabel(sortOrder: MemosSortOrder): string {
 	switch (sortOrder) {
 		case "created-asc":
-			return "created time, oldest first";
+			return t("view.sortCreatedAsc");
 		case "updated-desc":
-			return "edited time, newest first";
+			return t("view.sortUpdatedDesc");
 		case "updated-asc":
-			return "edited time, oldest first";
+			return t("view.sortUpdatedAsc");
 		case "created-desc":
 		default:
-			return "created time, newest first";
+			return t("view.sortCreatedDesc");
 	}
 }
 

@@ -2,6 +2,7 @@ import { normalizePath } from "obsidian";
 import { App, PluginSettingTab, Setting } from "obsidian";
 import type MemosViewPlugin from "./main";
 import type { MemosPluginSettings } from "./types";
+import { t } from "./i18n";
 
 export const DEFAULT_SETTINGS: MemosPluginSettings = {
 	boundFilePath: "",
@@ -22,8 +23,8 @@ export class MemosSettingTab extends PluginSettingTab {
 		containerEl.empty();
 
 		new Setting(containerEl)
-			.setName("Display name")
-			.setDesc("Shown in the left memos header.")
+			.setName(t("settings.displayName"))
+			.setDesc(t("settings.displayNameDesc"))
 			.addText((text) =>
 				text
 					.setPlaceholder("Your name")
@@ -36,8 +37,8 @@ export class MemosSettingTab extends PluginSettingTab {
 			);
 
 		new Setting(containerEl)
-			.setName("Timestamp format")
-			.setDesc("Used when creating memo timestamps and parsing daily note entries, for example HH:mm or HH:mm:ss.")
+			.setName(t("settings.timestampFormat"))
+			.setDesc(t("settings.timestampFormatDesc"))
 			.addText((text) =>
 				text
 					.setPlaceholder("HH:mm")
@@ -50,8 +51,8 @@ export class MemosSettingTab extends PluginSettingTab {
 			);
 
 		new Setting(containerEl)
-			.setName("Bound file")
-			.setDesc("When this file is opened, the current editor leaf is automatically switched to the memos view.")
+			.setName(t("settings.boundFile"))
+			.setDesc(t("settings.boundFileDesc"))
 			.addText((text) =>
 				text
 					.setPlaceholder("Notes/inbox.md")

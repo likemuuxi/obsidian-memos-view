@@ -12,6 +12,7 @@ import { MemosView } from "./memos/memosView";
 import { DEFAULT_SETTINGS, MemosSettingTab } from "./settings";
 import { VIEW_TYPE_MEMOS } from "./types";
 import type { DailyNotesConfig, MemoEntry, MemosPluginSettings } from "./types";
+import { t } from "./i18n";
 
 export default class MemosViewPlugin extends Plugin {
 	settings: MemosPluginSettings = DEFAULT_SETTINGS;
@@ -32,13 +33,13 @@ export default class MemosViewPlugin extends Plugin {
 			defaultMod: false,
 		});
 
-		this.addRibbonIcon("lightbulb", "Open memos view", () => {
+		this.addRibbonIcon("lightbulb", t("commands.openMemosView"), () => {
 			void this.activateMemosView();
 		});
 
 		this.addCommand({
 			id: "open-memos-view",
-			name: "Open memos view",
+			name: t("commands.openMemosView"),
 			callback: () => {
 				void this.activateMemosView();
 			},
@@ -46,7 +47,7 @@ export default class MemosViewPlugin extends Plugin {
 
 		this.addCommand({
 			id: "refresh-memos-view",
-			name: "Refresh memos view",
+			name: t("commands.refreshMemosView"),
 			callback: () => {
 				void this.refreshAllMemosViews();
 			},
@@ -54,7 +55,7 @@ export default class MemosViewPlugin extends Plugin {
 
 		this.addCommand({
 			id: "random-walk-memo",
-			name: "Random walk memo",
+			name: t("commands.randomWalkMemo"),
 			callback: () => {
 				void this.startRandomWalk();
 			},
@@ -118,7 +119,7 @@ export default class MemosViewPlugin extends Plugin {
 	async activateMemosView(boundFilePath?: string, leaf?: WorkspaceLeaf): Promise<void> {
 		const targetLeaf = leaf ?? this.app.workspace.getLeaf(false);
 		if (!targetLeaf) {
-			new Notice("No workspace leaf available.");
+			new Notice(t("notices.noWorkspaceLeaf"));
 			return;
 		}
 
@@ -148,7 +149,7 @@ export default class MemosViewPlugin extends Plugin {
 	async startRandomWalk(): Promise<void> {
 		const memosView = await this.getOrCreateMemosView();
 		if (!memosView) {
-			new Notice("Could not open memos view.");
+			new Notice(t("notices.couldNotOpenView"));
 			return;
 		}
 
@@ -158,7 +159,7 @@ export default class MemosViewPlugin extends Plugin {
 	async openSourceFile(path: string): Promise<void> {
 		const file = this.app.vault.getAbstractFileByPath(path);
 		if (!(file instanceof TFile)) {
-			new Notice("Source file no longer exists.");
+			new Notice(t("notices.sourceFileNoLongerExists"));
 			return;
 		}
 
@@ -168,13 +169,13 @@ export default class MemosViewPlugin extends Plugin {
 	async openSourceFileAtLine(path: string, line: number): Promise<void> {
 		const file = this.app.vault.getAbstractFileByPath(path);
 		if (!(file instanceof TFile)) {
-			new Notice("Source file no longer exists.");
+			new Notice(t("notices.sourceFileNoLongerExists"));
 			return;
 		}
 
 		const leaf = this.app.workspace.getLeaf(false);
 		if (!leaf) {
-			new Notice("No workspace leaf available.");
+			new Notice(t("notices.noWorkspaceLeaf"));
 			return;
 		}
 
@@ -278,7 +279,7 @@ export default class MemosViewPlugin extends Plugin {
 
 		const file = this.app.vault.getAbstractFileByPath(memo.sourcePath);
 		if (!(file instanceof TFile)) {
-			new Notice("Source file no longer exists.");
+			new Notice(t("notices.sourceFileNoLongerExists"));
 			return;
 		}
 
@@ -287,19 +288,19 @@ export default class MemosViewPlugin extends Plugin {
 		const normalizedBody = body.replace(/\r\n/g, "\n").trim();
 		const ranges = getMemoBlockRanges(rawContent);
 		if (memo.sourceIndex < 0 || memo.sourceIndex >= ranges.length) {
-			new Notice("Could not locate the original memo block.");
+			new Notice(t("notices.couldNotLocateBlock"));
 			return;
 		}
 
 		const targetRange = ranges[memo.sourceIndex];
 		if (!targetRange) {
-			new Notice("Could not locate the original memo block.");
+			new Notice(t("notices.couldNotLocateBlock"));
 			return;
 		}
 
 		const parsedBlock = parseMemoBlock(targetRange.raw, this.settings.timestampFormat);
 		if (!parsedBlock) {
-			new Notice("Could not parse the original memo block.");
+			new Notice(t("notices.couldNotParseBlock"));
 			return;
 		}
 
@@ -385,7 +386,7 @@ export default class MemosViewPlugin extends Plugin {
 	private async updateMemoStatus(memo: MemoEntry, key: MemoStatusKey, enabled: boolean, options: { refresh?: boolean } = {}): Promise<void> {
 		const file = this.app.vault.getAbstractFileByPath(memo.sourcePath);
 		if (!(file instanceof TFile)) {
-			new Notice("Source file no longer exists.");
+			new Notice(t("notices.sourceFileNoLongerExists"));
 			return;
 		}
 
@@ -394,19 +395,19 @@ export default class MemosViewPlugin extends Plugin {
 		const normalizedBody = body.replace(/\r\n/g, "\n").trim();
 		const ranges = getMemoBlockRanges(rawContent);
 		if (memo.sourceIndex < 0 || memo.sourceIndex >= ranges.length) {
-			new Notice("Could not locate the original memo block.");
+			new Notice(t("notices.couldNotLocateBlock"));
 			return;
 		}
 
 		const targetRange = ranges[memo.sourceIndex];
 		if (!targetRange) {
-			new Notice("Could not locate the original memo block.");
+			new Notice(t("notices.couldNotLocateBlock"));
 			return;
 		}
 
 		const parsedBlock = parseMemoBlock(targetRange.raw, this.settings.timestampFormat);
 		if (!parsedBlock) {
-			new Notice("Could not parse the original memo block.");
+			new Notice(t("notices.couldNotParseBlock"));
 			return;
 		}
 

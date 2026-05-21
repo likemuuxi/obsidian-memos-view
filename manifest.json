@@ -1,7 +1,7 @@
 {
 	"id": "memos-view",
 	"name": "Memos View",
-	"version": "0.1.1",
+	"version": "0.2.0",
 	"minAppVersion": "0.15.0",
 	"description": "A flomo-inspired memos stream built from your Obsidian daily notes.",
 	"author": "Muuxi",

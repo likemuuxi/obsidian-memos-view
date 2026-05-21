@@ -1,6 +1,7 @@
 import { App, Component, MarkdownRenderer, Modal, Notice, setIcon } from "obsidian";
 import domtoimage from "dom-to-image-more";
 import type { MemoEntry } from "../types";
+import { t } from "../i18n";
 
 type MemoShareStyleId = "daily" | "ticket" | "phone" | "memo" | "feed" | "plain";
 
@@ -139,7 +140,7 @@ class MemoShareModal extends Modal {
 		const actionsEl = this.contentEl.createDiv({ cls: "memos-share-actions" });
 		const copyButtonEl = actionsEl.createEl("button", {
 			cls: "memos-share-action is-primary",
-			text: "Copy image",
+			text: t("share.copyImage"),
 			attr: { type: "button" },
 		});
 		copyButtonEl.addEventListener("click", () => {
@@ -147,7 +148,7 @@ class MemoShareModal extends Modal {
 		});
 		const saveButtonEl = actionsEl.createEl("button", {
 			cls: "memos-share-action",
-			text: "Save image",
+			text: t("share.saveImage"),
 			attr: { type: "button" },
 		});
 		saveButtonEl.addEventListener("click", () => {
@@ -283,10 +284,10 @@ class MemoShareModal extends Modal {
 					"image/png": blob,
 				}),
 			]);
-			new Notice("Share image copied.");
+			new Notice(t("share.imageCopied"));
 		} catch (error) {
 			console.error("Failed to copy share image", error);
-			new Notice("Copy failed. Saving the image instead.");
+			new Notice(t("share.copyFailed"));
 			await this.saveImage();
 		}
 	}
@@ -327,10 +328,10 @@ class MemoShareModal extends Modal {
 			window.setTimeout(() => {
 				URL.revokeObjectURL(url);
 			}, 1000);
-			new Notice("Share image saved.");
+			new Notice(t("share.imageSaved"));
 		} catch (error) {
 			console.error("Failed to save share image", error);
-			new Notice("Save failed.");
+			new Notice(t("share.saveFailed"));
 		}
 	}
 

@@ -2,7 +2,7 @@ import { TFile } from "obsidian";
 import type { MemoEntry } from "../types";
 
 const DATE_IN_FILE_NAME = /(\d{4})-(\d{2})-(\d{2})/;
-const TAG_PATTERN = /(^|\s)#([A-Za-z0-9_/-]+)/g;
+const TAG_PATTERN = /(^|\s)#([\p{L}\p{N}_/-]+)/gu;
 const TOP_LEVEL_LIST_ITEM_PATTERN = /^[-*+]\s+/m;
 const STATUS_MARKER_PATTERN = /\[(deleted|archived|pinned)::(\d{14})\]/gi;
 
