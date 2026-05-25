@@ -82,6 +82,85 @@ export function parseDailyNoteToMemos(file: TFile, content: string, timestampFor
 	}));
 }
 
+const YEARLY_DAY_HEADING = /^## (\d{4})-(\d{2})-(\d{2})/;
+
+export function parseYearlyNoteToMemos(file: TFile, content: string, timestampFormat: string): MemoEntry[] {
+	const { body } = splitFrontmatter(content);
+	const normalizedBody = body.replace(/\r\n/g, "\n").trim();
+	if (!normalizedBody) {
+		return [];
+	}
+
+	const sections: Array<{ dayKey: string; dayTimestamp: number; text: string; startLine: number }> = [];
+	const lines = normalizedBody.split("\n");
+	let currentDayKey = "";
+	let currentDayTimestamp = 0;
+	let currentStartLine = 0;
+	let currentLines: string[] = [];
+
+	const flushSection = (endLine: number): void => {
+		if (currentDayKey && currentLines.length) {
+			sections.push({
+				dayKey: currentDayKey,
+				dayTimestamp: currentDayTimestamp,
+				text: currentLines.join("\n"),
+				startLine: currentStartLine,
+			});
+		}
+		currentStartLine = endLine + 1;
+		currentLines = [];
+	};
+
+	for (let i = 0; i < lines.length; i++) {
+		const line = lines[i] ?? "";
+		const headingMatch = line.match(YEARLY_DAY_HEADING);
+		if (headingMatch) {
+			flushSection(i);
+			const [, year, month, day] = headingMatch;
+			currentDayKey = `${year}-${month}-${day}`;
+			currentDayTimestamp = new Date(`${year}-${month}-${day}T00:00:00`).getTime();
+		} else {
+			currentLines.push(line!);
+		}
+	}
+	flushSection(lines.length);
+
+	const bodyLineOffset = getBodyLineOffset(content);
+	let globalSourceIndex = 0;
+	const allMemos: MemoEntry[] = [];
+
+	for (const section of sections) {
+		const leadingBlanks = countLeadingBlankLines(section.text);
+		const ranges = getMemoBlockRanges(section.text);
+		for (const block of ranges) {
+			const parsedBlock = parseMemoBlock(block.raw, timestampFormat);
+			if (!parsedBlock) {
+				continue;
+			}
+			const createdAt = createMemoTimestamp(section.dayTimestamp, parsedBlock.timestampLabel);
+			allMemos.push({
+				id: `${file.path}::${globalSourceIndex}`,
+				content: parsedBlock.content,
+				sourcePath: file.path,
+				sourceBasename: file.basename,
+				sourceIndex: globalSourceIndex,
+				sourceLine: bodyLineOffset + section.startLine + leadingBlanks + block.line,
+				tags: extractTags(parsedBlock.content),
+				createdAt,
+				createdLabel: parsedBlock.timestampLabel,
+				updatedAt: file.stat.mtime,
+				dayKey: section.dayKey,
+				deletedAt: parsedBlock.deletedAt,
+				archivedAt: parsedBlock.archivedAt,
+				pinnedAt: parsedBlock.pinnedAt,
+			});
+			globalSourceIndex++;
+		}
+	}
+
+	return allMemos;
+}
+
 export function splitFrontmatter(content: string): { frontmatter: string; body: string } {
 	if (!content.startsWith("---")) {
 		return { frontmatter: "", body: content };
@@ -457,4 +536,17 @@ function countNewlines(value: string): number {
 	}
 
 	return value.split("\n").length - 1;
+}
+
+function countLeadingBlankLines(text: string): number {
+	const lines = text.split("\n");
+	let count = 0;
+	for (const line of lines) {
+		if (line.trim() === "") {
+			count++;
+		} else {
+			break;
+		}
+	}
+	return count;
 }

@@ -8,6 +8,7 @@ export const DEFAULT_SETTINGS: MemosPluginSettings = {
 	boundFilePath: "",
 	displayName: "",
 	timestampFormat: "HH:mm",
+	memoStoreMode: "daily",
 };
 
 export class MemosSettingTab extends PluginSettingTab {
@@ -60,6 +61,21 @@ export class MemosSettingTab extends PluginSettingTab {
 					.onChange(async (value) => {
 						this.plugin.settings.boundFilePath = normalizeBoundPath(value);
 						await this.plugin.saveSettings();
+					}),
+			);
+
+		new Setting(containerEl)
+			.setName(t("settings.memoStoreMode"))
+			.setDesc(t("settings.memoStoreModeDesc"))
+			.addDropdown((dropdown) =>
+				dropdown
+					.addOption("daily", t("settings.memoStoreModeDaily"))
+					.addOption("yearly", t("settings.memoStoreModeYearly"))
+					.setValue(this.plugin.settings.memoStoreMode)
+					.onChange(async (value) => {
+						this.plugin.settings.memoStoreMode = value as "daily" | "yearly";
+						await this.plugin.saveSettings();
+						await this.plugin.refreshAllMemosViews();
 					}),
 			);
 	}

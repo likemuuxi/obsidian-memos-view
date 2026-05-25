@@ -101,6 +101,12 @@ interface TranslationStrings {
 		timestampFormatDesc: string;
 		boundFile: string;
 		boundFileDesc: string;
+		memoStoreMode: string;
+		memoStoreModeDesc: string;
+		memoStoreModeDaily: string;
+		memoStoreModeDailyDesc: string;
+		memoStoreModeYearly: string;
+		memoStoreModeYearlyDesc: string;
 	};
 	share: {
 		copyImage: string;
@@ -215,6 +221,12 @@ const en: TranslationStrings = {
 		timestampFormatDesc: "Used when creating memo timestamps and parsing daily note entries, for example HH:mm or HH:mm:ss.",
 		boundFile: "Bound file",
 		boundFileDesc: "When this file is opened, the current editor leaf is automatically switched to the memos view.",
+		memoStoreMode: "Memo storage mode",
+		memoStoreModeDesc: "Choose where to save memos: daily notes (one file per day) or yearly files (one file per year).",
+		memoStoreModeDaily: "Daily notes",
+		memoStoreModeDailyDesc: "Save each memo to its daily note file (YYYY-MM-DD.md).",
+		memoStoreModeYearly: "Yearly file",
+		memoStoreModeYearlyDesc: "Save memos to a yearly file (YYYY.md), organized by date headings.",
 	},
 	share: {
 		copyImage: "Copy image",
@@ -329,6 +341,12 @@ const zhCN: TranslationStrings = {
 		timestampFormatDesc: "用于创建备忘录时间戳和解析日记条目，例如 HH:mm 或 HH:mm:ss。",
 		boundFile: "绑定文件",
 		boundFileDesc: "打开此文件时，自动将当前编辑面板切换为 Memos 视图。",
+		memoStoreMode: "备忘录存储模式",
+		memoStoreModeDesc: "选择备忘录的保存方式：每日笔记（每天一个文件）或年度文件（每年一个文件）。",
+		memoStoreModeDaily: "每日笔记",
+		memoStoreModeDailyDesc: "将备忘录保存到对应的每日笔记文件（YYYY-MM-DD.md）。",
+		memoStoreModeYearly: "年度文件",
+		memoStoreModeYearlyDesc: "将备忘录保存到年度文件（YYYY.md），按日期标题组织。",
 	},
 	share: {
 		copyImage: "复制图片",

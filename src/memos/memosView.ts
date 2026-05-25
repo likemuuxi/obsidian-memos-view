@@ -184,6 +184,7 @@ export class MemosView extends ItemView {
 			this.app,
 			this.plugin.getDailyNotesFolder(),
 			this.plugin.settings.timestampFormat,
+			this.plugin.settings.memoStoreMode,
 			this.plugin.settings.boundFilePath || undefined,
 		);
 		const viewModel = buildViewModel(
@@ -704,6 +705,7 @@ export class MemosView extends ItemView {
 			this.app,
 			this.plugin.getDailyNotesFolder(),
 			this.plugin.settings.timestampFormat,
+			this.plugin.settings.memoStoreMode,
 			this.plugin.settings.boundFilePath || undefined,
 		);
 		this.renderFilteredMemoStream();

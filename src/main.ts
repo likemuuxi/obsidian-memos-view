@@ -226,9 +226,26 @@ export default class MemosViewPlugin extends Plugin {
 	}
 
 	getTodayDailyNotePath(): string {
+		if (this.settings.memoStoreMode === "yearly") {
+			return this.getYearlyNotePath(new Date());
+		}
 		const folder = this.getDailyNotesFolder();
 		const fileName = this.formatDateByPattern(new Date(), this.dailyNotesConfig?.format ?? "YYYY-MM-DD");
 		return normalizePath(folder ? `${folder}/${fileName}.md` : `${fileName}.md`);
+	}
+
+	private getYearlyNotePath(date: Date): string {
+		const folder = this.getDailyNotesFolder();
+		const year = String(date.getFullYear());
+		return normalizePath(folder ? `${folder}/${year}.md` : `${year}.md`);
+	}
+
+	private getYearlyDayHeading(date: Date): string {
+		const year = date.getFullYear();
+		const month = String(date.getMonth() + 1).padStart(2, "0");
+		const day = String(date.getDate()).padStart(2, "0");
+		const weekdays = ["周日", "周一", "周二", "周三", "周四", "周五", "周六"];
+		return `## ${year}-${month}-${day} ${weekdays[date.getDay()]}`;
 	}
 
 	async appendMemoToToday(content: string, options: { refresh?: boolean } = {}): Promise<void> {
@@ -237,12 +254,18 @@ export default class MemosViewPlugin extends Plugin {
 			return;
 		}
 
+		const timestampLabel = this.formatTimeByPattern(new Date(), this.settings.timestampFormat);
+		const payload = serializeMemoBlock(normalized, timestampLabel);
+
+		if (this.settings.memoStoreMode === "yearly") {
+			await this.appendMemoToYearlyFile(payload, options);
+			return;
+		}
+
 		const folder = this.getDailyNotesFolder();
 		const fileName = this.formatDateByPattern(new Date(), this.dailyNotesConfig?.format ?? "YYYY-MM-DD");
 		const filePath = normalizePath(folder ? `${folder}/${fileName}.md` : `${fileName}.md`);
 		const existing = this.app.vault.getAbstractFileByPath(filePath);
-		const timestampLabel = this.formatTimeByPattern(new Date(), this.settings.timestampFormat);
-		const payload = serializeMemoBlock(normalized, timestampLabel);
 
 		if (existing instanceof TFile) {
 			const rawContent = await this.app.vault.cachedRead(existing);
@@ -260,6 +283,50 @@ export default class MemosViewPlugin extends Plugin {
 			}
 			this.suppressVaultRefresh(filePath);
 			await this.app.vault.create(filePath, payload);
+		}
+
+		if (options.refresh !== false) {
+			await this.refreshAllMemosViews();
+		}
+	}
+
+	private async appendMemoToYearlyFile(payload: string, options: { refresh?: boolean }): Promise<void> {
+		const now = new Date();
+		const filePath = this.getYearlyNotePath(now);
+		const year = String(now.getFullYear());
+		const dayHeading = this.getYearlyDayHeading(now);
+		const existing = this.app.vault.getAbstractFileByPath(filePath);
+
+		if (existing instanceof TFile) {
+			const rawContent = await this.app.vault.cachedRead(existing);
+			const { frontmatter, body } = splitFrontmatter(rawContent);
+			const normalizedBody = body.replace(/\r\n/g, "\n").trim();
+			const sectionBlock = `\n${payload}\n`;
+			const headingIndex = normalizedBody.indexOf(dayHeading);
+			let nextBody: string;
+			if (headingIndex === -1) {
+				nextBody = `# ${year}\n\n${dayHeading}\n${sectionBlock}\n${normalizedBody ? normalizedBody : ""}`.trim();
+			} else {
+				const afterHeading = headingIndex + dayHeading.length;
+				const nextHeadingMatch = normalizedBody.slice(afterHeading).search(/\n## /);
+				const sectionEnd = nextHeadingMatch === -1 ? normalizedBody.length : afterHeading + nextHeadingMatch;
+				const beforeSection = normalizedBody.slice(0, sectionEnd);
+				const afterSection = normalizedBody.slice(sectionEnd);
+				nextBody = `${beforeSection}\n${payload}\n${afterSection}`;
+			}
+			const nextFileContent = frontmatter
+				? `${frontmatter}\n\n${nextBody}`
+				: nextBody;
+			this.suppressVaultRefresh(existing.path);
+			await this.app.vault.modify(existing, nextFileContent);
+		} else {
+			const folder = this.getDailyNotesFolder();
+			if (folder) {
+				await this.app.vault.createFolder(folder).catch(() => undefined);
+			}
+			const fileContent = `# ${year}\n\n${dayHeading}\n\n${payload}\n`;
+			this.suppressVaultRefresh(filePath);
+			await this.app.vault.create(filePath, fileContent);
 		}
 
 		if (options.refresh !== false) {

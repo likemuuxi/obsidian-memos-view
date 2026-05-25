@@ -4,6 +4,7 @@ export interface MemosPluginSettings {
 	boundFilePath: string;
 	displayName: string;
 	timestampFormat: string;
+	memoStoreMode: "daily" | "yearly";
 }
 
 export interface MemoEntry {
