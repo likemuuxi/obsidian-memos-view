@@ -1612,6 +1612,11 @@ export class MemosView extends ItemView {
 			placeholder: t("view.composerPlaceholder"),
 		});
 		const wikilinkSuggestEl = editorWrapEl.createDiv({ cls: "memos-wikilink-suggest", attr: { hidden: "hidden" } });
+		const tagSuggestEl = editorWrapEl.createDiv({ cls: "memos-wikilink-suggest memos-tag-suggest", attr: { hidden: "hidden" } });
+		const selectionToolbar = editorWrapEl.createDiv({ cls: "memos-selection-toolbar" });
+		this.createSelectionToolbar(selectionToolbar, textareaEl, (value) => {
+			this.inlineEditorValue = value;
+		});
 		textareaEl.value = this.inlineEditorValue;
 		textareaEl.addEventListener("input", () => {
 			this.inlineEditorValue = textareaEl.value;
@@ -1631,6 +1636,9 @@ export class MemosView extends ItemView {
 			this.inlineEditorValue = value;
 		});
 		this.bindTextareaWikilinkSuggest(textareaEl, wikilinkSuggestEl, memo.sourcePath, (value) => {
+			this.inlineEditorValue = value;
+		});
+		this.bindTextareaTagSuggest(textareaEl, tagSuggestEl, (value) => {
 			this.inlineEditorValue = value;
 		});
 
@@ -2109,12 +2117,15 @@ export class MemosView extends ItemView {
 		const positionPanel = (): void => {
 			const caretOffset = this.measureTextareaCaretOffset(textareaEl);
 			const verticalGap = 8;
+			const maxPanelWidth = Math.min(260, textareaEl.clientWidth);
+			const maxLeft = Math.max(0, textareaEl.clientWidth - maxPanelWidth);
+			const nextLeft = Math.min(Math.max(caretOffset.left, 0), maxLeft);
 			const nextTop = Math.min(
 				Math.max(caretOffset.top + caretOffset.lineHeight + verticalGap, verticalGap),
 				Math.max(verticalGap, textareaEl.clientHeight - 16),
 			);
-			panelEl.style.removeProperty("width");
-			panelEl.style.left = "0";
+			panelEl.style.width = `${maxPanelWidth}px`;
+			panelEl.style.left = `${nextLeft}px`;
 			panelEl.style.top = `${nextTop}px`;
 		};
 

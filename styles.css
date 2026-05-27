@@ -624,7 +624,7 @@
 	box-shadow: none !important;
 	font: inherit;
 	line-height: 1.6;
-	color: var(--text-normal);
+	color: var(--text-normal) !important;
 	transition: min-height 300ms ease, max-height 300ms ease;
 }
 
@@ -774,8 +774,6 @@
 .memos-tag-suggest {
 	min-width: unset;
 	max-width: min(240px, calc(100% - 16px));
-	width: auto !important;
-	left: 0 !important;
 	align-items: stretch;
 }
 
@@ -1105,7 +1103,7 @@
 	box-shadow: none !important;
 	font: inherit;
 	line-height: 1.6;
-	color: var(--text-normal);
+	color: var(--text-normal) !important;
 }
 
 .memos-inline-editor-input:focus {
