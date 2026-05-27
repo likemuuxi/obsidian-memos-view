@@ -666,7 +666,6 @@ export class MemosView extends ItemView {
 			await this.saveComposerMemo();
 		});
 
-		this.updateComposerStateClasses(composerEl, this.isComposerExpanded || Boolean(this.composerValue.trim()));
 		return composerEl;
 	}
 
@@ -1192,48 +1191,12 @@ export class MemosView extends ItemView {
 		bodyEl: HTMLElement,
 		backToTopButtonEl: HTMLElement,
 	): void {
-		this.updateShellCompactState(shellEl, this.shouldCompactComposer(bodyEl) && !this.isComposerExpanded);
 		this.updateBackToTopButtonState(backToTopButtonEl, bodyEl.scrollTop > 240);
 
 		bodyEl.addEventListener("scroll", () => {
 			this.hasScrolledMemoStream = true;
-			const shouldCompact = this.shouldCompactComposer(bodyEl) && !this.isComposerExpanded;
-			this.updateShellCompactState(shellEl, shouldCompact);
 			this.updateBackToTopButtonState(backToTopButtonEl, bodyEl.scrollTop > 240);
 		});
-
-		composerEl.addEventListener("focusin", () => {
-			this.isComposerExpanded = true;
-			this.updateComposerStateClasses(composerEl, true);
-			this.updateShellCompactState(shellEl, false);
-		});
-
-		composerEl.addEventListener("focusout", () => {
-			window.setTimeout(() => {
-				const activeElement = document.activeElement;
-				if (activeElement && composerEl.contains(activeElement)) {
-					return;
-				}
-
-				const expanded = Boolean(this.composerValue.trim());
-				this.isComposerExpanded = expanded;
-				this.updateComposerStateClasses(composerEl, expanded);
-				this.updateShellCompactState(shellEl, this.shouldCompactComposer(bodyEl) && !expanded);
-			}, 0);
-		});
-	}
-
-	private shouldCompactComposer(bodyEl: HTMLElement): boolean {
-		return this.hasScrolledMemoStream || bodyEl.scrollTop > 0;
-	}
-
-	private updateComposerStateClasses(composerEl: HTMLElement, expanded: boolean): void {
-		composerEl.toggleClass("is-expanded", expanded);
-		composerEl.toggleClass("is-compact", !expanded);
-	}
-
-	private updateShellCompactState(shellEl: HTMLElement, compact: boolean): void {
-		shellEl.toggleClass("is-composer-compact", compact);
 	}
 
 	private updateBackToTopButtonState(buttonEl: HTMLElement, visible: boolean): void {
@@ -2351,11 +2314,6 @@ export class MemosView extends ItemView {
 		const textareaEl = this.contentEl.find(".memos-composer-input");
 		if (textareaEl instanceof HTMLTextAreaElement) {
 			textareaEl.value = "";
-		}
-
-		const composerEl = this.contentEl.find(".memos-composer");
-		if (composerEl instanceof HTMLElement) {
-			this.updateComposerStateClasses(composerEl, false);
 		}
 	}
 

@@ -610,12 +610,11 @@
 	border: 1px solid var(--background-modifier-border);
 	border-radius: 8px;
 	background: var(--background-secondary);
-	transition: padding 300ms ease;
 }
 
 .memos-composer-input {
 	width: 100%;
-	min-height: 60px;
+	min-height: 100px;
 	max-height: 400px;
 	padding: 0;
 	resize: none;
@@ -625,15 +624,6 @@
 	font: inherit;
 	line-height: 1.6;
 	color: var(--text-normal) !important;
-	transition: min-height 300ms ease, max-height 300ms ease;
-}
-
-.memos-composer:focus-within .memos-composer-input {
-	min-height: 100px;
-}
-
-.memos-composer.is-editing .memos-composer-input {
-	min-height: 100px;
 }
 
 .memos-composer-input:focus {
@@ -824,7 +814,6 @@
 	justify-content: space-between;
 	gap: 8px;
 	margin-top: 8px;
-	transition: margin-top 300ms ease;
 }
 
 .memos-composer-tools,
@@ -928,20 +917,6 @@
 .memos-back-to-top svg {
 	width: 16px;
 	height: 16px;
-}
-
-.memos-shell.is-composer-compact .memos-composer {
-	padding: 6px 12px;
-}
-
-.memos-shell.is-composer-compact .memos-composer-input {
-	min-height: 36px;
-	max-height: 36px;
-	overflow: hidden;
-}
-
-.memos-shell.is-composer-compact .memos-composer-footer {
-	margin-top: 2px;
 }
 
 .memos-stream {
