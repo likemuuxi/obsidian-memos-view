@@ -82,7 +82,6 @@
 	border-radius: 8px;
 	background: var(--background-primary);
 	box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
-	pointer-events: none;
 }
 
 .memos-heatmap-preview.is-visible {
@@ -122,6 +121,12 @@
 
 .memos-heatmap-preview-content img {
 	display: none;
+}
+
+.memos-heatmap-preview-content ul,
+.memos-heatmap-preview-content ol {
+	margin: 0;
+	padding: 0 0 0 2.2em;
 }
 
 .memos-heatmap-grid {
