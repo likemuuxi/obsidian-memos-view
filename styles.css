@@ -640,12 +640,17 @@
 	position: absolute;
 	z-index: 40;
 	flex-direction: row;
-	gap: 2px;
-	padding: 3px 4px;
+	align-items: center;
+	gap: 1px;
+	padding: 4px 5px;
 	border: 1px solid var(--background-modifier-border);
-	border-radius: 6px;
+	border-radius: 8px;
 	background: var(--background-primary);
-	box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+	box-shadow:
+		0 4px 16px rgba(0, 0, 0, 0.12),
+		0 1px 4px rgba(0, 0, 0, 0.06);
+	backdrop-filter: blur(8px);
+	-webkit-backdrop-filter: blur(8px);
 }
 
 .memos-selection-toolbar.is-visible {
@@ -656,15 +661,16 @@
 	display: inline-flex;
 	align-items: center;
 	justify-content: center;
-	width: 26px;
-	height: 26px;
+	width: 28px;
+	height: 28px;
 	padding: 0;
 	border: 0;
-	border-radius: 4px;
+	border-radius: 6px;
 	background: transparent !important;
 	box-shadow: none !important;
 	color: var(--text-muted);
 	cursor: pointer;
+	transition: background 80ms ease, color 80ms ease;
 }
 
 .memos-selection-toolbar-button:hover {
@@ -672,9 +678,36 @@
 	color: var(--text-normal);
 }
 
+.memos-selection-toolbar-button.is-active {
+	background: var(--interactive-accent) !important;
+	color: var(--text-on-accent) !important;
+}
+
+.memos-selection-toolbar-button:active {
+	background: var(--background-modifier-active-hover) !important;
+	transform: scale(0.95);
+}
+
 .memos-selection-toolbar-button svg {
 	width: 15px;
 	height: 15px;
+}
+
+.memos-selection-toolbar-divider {
+	width: 1px;
+	height: 18px;
+	margin: 0 3px;
+	background: var(--background-modifier-border);
+	flex-shrink: 0;
+}
+
+.memos-selection-toolbar-clear {
+	color: var(--text-faint) !important;
+}
+
+.memos-selection-toolbar-clear:hover {
+	color: var(--text-error) !important;
+	background: color-mix(in srgb, var(--text-error) 8%, transparent) !important;
 }
 
 .memos-wikilink-suggest {

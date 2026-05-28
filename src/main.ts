@@ -95,7 +95,7 @@ export default class MemosViewPlugin extends Plugin {
 	}
 
 	async loadSettings(): Promise<void> {
-		const rawData = await this.loadData() as Partial<MemosPluginSettings> & {
+		const rawData = ((await this.loadData()) ?? {}) as Partial<MemosPluginSettings> & {
 			boundFilePaths?: string[];
 			maxMemos?: number;
 		};

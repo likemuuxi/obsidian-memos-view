@@ -924,6 +924,10 @@ export class MemosView extends ItemView {
 			{ icon: "bold", label: t("view.boldSelection"), prefix: "**", suffix: "**" },
 			{ icon: "italic", label: t("view.italicSelection"), prefix: "*", suffix: "*" },
 			{ icon: "strikethrough", label: t("view.strikeSelection"), prefix: "~~", suffix: "~~" },
+			{ icon: "highlighter", label: t("view.highlightSelection"), prefix: "==", suffix: "==" },
+			{ icon: "code", label: t("view.codeSelection"), prefix: "`", suffix: "`" },
+			{ icon: "sigma", label: t("view.mathSelection"), prefix: "$", suffix: "$" },
+			{ icon: "percent", label: t("view.commentSelection"), prefix: "%%", suffix: "%%" },
 		];
 		for (const { icon, label, prefix, suffix } of actions) {
 			const btn = toolbarEl.createEl("button", {
@@ -931,12 +935,25 @@ export class MemosView extends ItemView {
 				attr: { type: "button", "aria-label": label },
 			});
 			setIcon(btn, icon);
+			btn.dataset.prefix = prefix;
+			btn.dataset.suffix = suffix;
 			btn.addEventListener("mousedown", (event) => {
 				event.preventDefault();
 				this.toggleWrapSelection(textareaEl, prefix, suffix, onChange);
 				this.updateSelectionToolbar(toolbarEl, textareaEl);
 			});
 		}
+		const divider = toolbarEl.createDiv({ cls: "memos-selection-toolbar-divider" });
+		const clearBtn = toolbarEl.createEl("button", {
+			cls: "memos-selection-toolbar-button memos-selection-toolbar-clear",
+			attr: { type: "button", "aria-label": t("view.clearFormat") },
+		});
+		setIcon(clearBtn, "eraser");
+		clearBtn.addEventListener("mousedown", (event) => {
+			event.preventDefault();
+			this.clearFormatting(textareaEl, onChange);
+			this.updateSelectionToolbar(toolbarEl, textareaEl);
+		});
 		const onSelectionChange = (): void => {
 			this.updateSelectionToolbar(toolbarEl, textareaEl);
 		};
@@ -958,10 +975,42 @@ export class MemosView extends ItemView {
 		const charWidth = parseFloat(getComputedStyle(textareaEl).fontSize) * 0.55;
 		const lastLineStart = textareaEl.value.lastIndexOf("\n", start - 1) + 1;
 		const colOffset = start - lastLineStart;
-		const left = Math.min(colOffset * charWidth, textareaEl.clientWidth - 120);
+		const left = Math.min(colOffset * charWidth, textareaEl.clientWidth - 280);
 		toolbarEl.style.top = "-40px";
 		toolbarEl.style.left = `${Math.max(0, left)}px`;
 		toolbarEl.addClass("is-visible");
+
+		const value = textareaEl.value;
+		const beforeSel = value.slice(0, start);
+		const afterSel = value.slice(end);
+		const buttons = toolbarEl.querySelectorAll<HTMLButtonElement>(".memos-selection-toolbar-button:not(.memos-selection-toolbar-clear)");
+		for (let i = 0; i < buttons.length; i++) {
+			const btn = buttons.item(i);
+			if (!btn) continue;
+			const prefix = btn.dataset.prefix ?? "";
+			const suffix = btn.dataset.suffix ?? "";
+			let wrappedBefore = beforeSel.endsWith(prefix);
+			let wrappedAfter = afterSel.startsWith(suffix);
+			if (prefix === "*" && wrappedBefore) {
+				const extra = beforeSel.slice(0, -prefix.length);
+				if (extra.endsWith("*")) wrappedBefore = false;
+			}
+			if (prefix === "$" && wrappedBefore) {
+				const extra = beforeSel.slice(0, -prefix.length);
+				if (extra.endsWith("$")) wrappedBefore = false;
+			}
+			if (suffix === "*" && wrappedAfter) {
+				if (afterSel.length > suffix.length && afterSel.charAt(suffix.length) === "*") wrappedAfter = false;
+			}
+			if (suffix === "$" && wrappedAfter) {
+				if (afterSel.length > suffix.length && afterSel.charAt(suffix.length) === "$") wrappedAfter = false;
+			}
+			if (wrappedBefore && wrappedAfter) {
+				btn.addClass("is-active");
+			} else {
+				btn.removeClass("is-active");
+			}
+		}
 	}
 
 	private createFormattingTools(
@@ -1104,9 +1153,12 @@ export class MemosView extends ItemView {
 		let replacement = "";
 		let nextSelectionStart = start;
 		let nextSelectionEnd = end;
+		let insertStart = start;
+		let insertEnd = end;
 
 		if (selectedText && before === prefix && after === suffix) {
-			textareaEl.setSelectionRange(start - prefix.length, end + suffix.length);
+			insertStart = start - prefix.length;
+			insertEnd = end + suffix.length;
 			replacement = selectedText;
 			nextSelectionStart = start - prefix.length;
 			nextSelectionEnd = nextSelectionStart + selectedText.length;
@@ -1123,7 +1175,7 @@ export class MemosView extends ItemView {
 		}
 
 		textareaEl.focus();
-		textareaEl.setSelectionRange(start, end);
+		textareaEl.setSelectionRange(insertStart, insertEnd);
 		document.execCommand("insertText", false, replacement);
 
 		if (onChange) {
@@ -1131,6 +1183,30 @@ export class MemosView extends ItemView {
 		}
 
 		textareaEl.setSelectionRange(nextSelectionStart, nextSelectionEnd);
+	}
+
+	private clearFormatting(
+		textareaEl: HTMLTextAreaElement,
+		onChange?: (value: string) => void,
+	): void {
+		const start = textareaEl.selectionStart ?? 0;
+		const end = textareaEl.selectionEnd ?? 0;
+		if (start === end) return;
+		const selectedText = textareaEl.value.slice(start, end);
+		const markers: Array<string> = ["**", "*", "~~", "==", "`", "$$", "$", "%%"];
+		let cleaned = selectedText;
+		for (const mark of markers) {
+			const escaped = mark.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+			cleaned = cleaned.replace(new RegExp(`^${escaped}([\\s\\S]*?)${escaped}$`), "$1");
+		}
+		if (cleaned === selectedText) return;
+
+		textareaEl.focus();
+		textareaEl.setSelectionRange(start, end);
+		document.execCommand("insertText", false, cleaned);
+
+		onChange?.(textareaEl.value);
+		textareaEl.setSelectionRange(start, start + cleaned.length);
 	}
 
 	private toggleLinePrefix(

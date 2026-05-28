@@ -50,6 +50,11 @@ interface TranslationStrings {
 		boldSelection: string;
 		italicSelection: string;
 		strikeSelection: string;
+		highlightSelection: string;
+		codeSelection: string;
+		mathSelection: string;
+		commentSelection: string;
+		clearFormat: string;
 		insertBulletList: string;
 		insertNumberedList: string;
 		insertTaskList: string;
@@ -176,6 +181,11 @@ const en: TranslationStrings = {
 		boldSelection: "Bold selection",
 		italicSelection: "Italic selection",
 		strikeSelection: "Strike selection",
+		highlightSelection: "Highlight selection",
+		codeSelection: "Code selection",
+		mathSelection: "Math selection",
+		commentSelection: "Comment selection",
+		clearFormat: "Clear formatting",
 		insertBulletList: "Insert bullet list",
 		insertNumberedList: "Insert numbered list",
 		insertTaskList: "Insert task list",
@@ -302,6 +312,11 @@ const zhCN: TranslationStrings = {
 		boldSelection: "加粗",
 		italicSelection: "斜体",
 		strikeSelection: "删除线",
+		highlightSelection: "高亮",
+		codeSelection: "代码",
+		mathSelection: "数学",
+		commentSelection: "注释",
+		clearFormat: "清除格式",
 		insertBulletList: "无序列表",
 		insertNumberedList: "有序列表",
 		insertTaskList: "任务列表",
