@@ -41,7 +41,7 @@ const SHARE_STYLES: MemoShareStyle[] = [
 		accent: "#d95f64",
 		border: "#d6d6d6",
 		shadow: "0 30px 70px rgba(38, 38, 38, 0.15)",
-		title: "flomo",
+		title: "memos",
 	},
 	{
 		id: "phone",
@@ -65,7 +65,7 @@ const SHARE_STYLES: MemoShareStyle[] = [
 		accent: "#dfb93f",
 		border: "#efe0a6",
 		shadow: "0 28px 78px rgba(145, 112, 33, 0.18)",
-		title: "memo",
+		title: "memos",
 	},
 	{
 		id: "feed",
@@ -89,7 +89,7 @@ const SHARE_STYLES: MemoShareStyle[] = [
 		accent: "#787878",
 		border: "#eeeeee",
 		shadow: "0 24px 68px rgba(0, 0, 0, 0.1)",
-		title: "memo",
+		title: "memos",
 	},
 ];
 

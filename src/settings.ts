@@ -9,7 +9,9 @@ export const DEFAULT_SETTINGS: MemosPluginSettings = {
 	displayName: "",
 	timestampFormat: "HH:mm",
 	memoStoreMode: "daily",
+	memoStoreHeading: "",
 	memoReadMode: "all",
+	memoReadHeading: "",
 };
 
 export class MemosSettingTab extends PluginSettingTab {
@@ -76,9 +78,26 @@ export class MemosSettingTab extends PluginSettingTab {
 					.onChange(async (value) => {
 						this.plugin.settings.memoStoreMode = value as "daily" | "yearly";
 						await this.plugin.saveSettings();
+						this.display();
 						await this.plugin.refreshAllMemosViews();
 					}),
 			);
+
+		if (this.plugin.settings.memoStoreMode === "daily") {
+			new Setting(containerEl)
+				.setName(t("settings.memoStoreHeading"))
+				.setDesc(t("settings.memoStoreHeadingDesc"))
+				.addText((text) =>
+					text
+						.setPlaceholder("## Memos")
+						.setValue(this.plugin.settings.memoStoreHeading)
+						.onChange(async (value) => {
+							this.plugin.settings.memoStoreHeading = value.trim();
+							await this.plugin.saveSettings();
+							await this.plugin.refreshAllMemosViews();
+						}),
+				);
+		}
 
 		new Setting(containerEl)
 			.setName(t("settings.memoReadMode"))
@@ -92,9 +111,26 @@ export class MemosSettingTab extends PluginSettingTab {
 					.onChange(async (value) => {
 						this.plugin.settings.memoReadMode = value as "all" | "daily" | "yearly";
 						await this.plugin.saveSettings();
+						this.display();
 						await this.plugin.refreshAllMemosViews();
 					}),
 			);
+
+		if (this.plugin.settings.memoReadMode === "all" || this.plugin.settings.memoReadMode === "daily") {
+			new Setting(containerEl)
+				.setName(t("settings.memoReadHeading"))
+				.setDesc(t("settings.memoReadHeadingDesc"))
+				.addText((text) =>
+					text
+						.setPlaceholder("## Memos")
+						.setValue(this.plugin.settings.memoReadHeading)
+						.onChange(async (value) => {
+							this.plugin.settings.memoReadHeading = value.trim();
+							await this.plugin.saveSettings();
+							await this.plugin.refreshAllMemosViews();
+						}),
+				);
+		}
 	}
 }
 

@@ -18,6 +18,7 @@ interface TranslationStrings {
 		randomWalk: string;
 		searchPlaceholder: string;
 		composerPlaceholder: string;
+		togglePreview: string;
 		saveMemo: string;
 		noMatchingMemos: string;
 		noMatchingMemosDesc: string;
@@ -90,6 +91,9 @@ interface TranslationStrings {
 		noMemosForRandomWalk: string;
 		noDeletedMemos: string;
 		permanentlyDeleted: string;
+		permanentlyDelete: string;
+		permanentlyDeleteConfirm: string;
+		memoPermanentlyDeleted: string;
 		deleteAll: string;
 		sourceFileNoLongerExists: string;
 		couldNotLocateBlock: string;
@@ -118,6 +122,10 @@ interface TranslationStrings {
 		memoReadModeAll: string;
 		memoReadModeDaily: string;
 		memoReadModeYearly: string;
+		memoStoreHeading: string;
+		memoStoreHeadingDesc: string;
+		memoReadHeading: string;
+		memoReadHeadingDesc: string;
 	};
 	share: {
 		copyImage: string;
@@ -149,6 +157,7 @@ const en: TranslationStrings = {
 		randomWalk: "Random walk",
 		searchPlaceholder: "Search memos, files, tags",
 		composerPlaceholder: "Type your thoughts here...",
+		togglePreview: "Toggle preview",
 		saveMemo: "Send",
 		noMatchingMemos: "No matching memos",
 		noMatchingMemosDesc: "Check your Daily notes setup, search keyword, or tag filter.",
@@ -221,6 +230,9 @@ const en: TranslationStrings = {
 		noMemosForRandomWalk: "No memos available for random walk in the current filter.",
 		noDeletedMemos: "No deleted memos to remove.",
 		permanentlyDeleted: "Permanently deleted {} memos.",
+		permanentlyDelete: "Permanently delete",
+		permanentlyDeleteConfirm: "Permanently delete this memo? This cannot be undone.",
+		memoPermanentlyDeleted: "Memo permanently deleted.",
 		deleteAll: "Delete all",
 		sourceFileNoLongerExists: "Source file no longer exists.",
 		couldNotLocateBlock: "Could not locate the original memo block.",
@@ -249,6 +261,10 @@ const en: TranslationStrings = {
 		memoReadModeAll: "All files",
 		memoReadModeDaily: "Daily notes only",
 		memoReadModeYearly: "Yearly files only",
+		memoStoreHeading: "Store heading",
+		memoStoreHeadingDesc: "When using daily notes, memos will be written under this heading. Leave empty to write at the top of the file.",
+		memoReadHeading: "Read heading",
+		memoReadHeadingDesc: "Only read memos under this heading from daily notes. Leave empty to read from the entire file.",
 	},
 	share: {
 		copyImage: "Copy image",
@@ -280,6 +296,7 @@ const zhCN: TranslationStrings = {
 		randomWalk: "随机漫步",
 		searchPlaceholder: "搜索备忘录、文件、标签",
 		composerPlaceholder: "在此记录你的想法...",
+		togglePreview: "切换预览",
 		saveMemo: "发送",
 		noMatchingMemos: "没有匹配的备忘录",
 		noMatchingMemosDesc: "请检查日记设置、搜索关键词或标签筛选。",
@@ -352,6 +369,9 @@ const zhCN: TranslationStrings = {
 		noMemosForRandomWalk: "当前筛选条件下没有可用于随机漫步的备忘录。",
 		noDeletedMemos: "没有已删除的备忘录。",
 		permanentlyDeleted: "已永久删除 {} 条备忘录。",
+		permanentlyDelete: "永久删除",
+		permanentlyDeleteConfirm: "永久删除此备忘录？此操作不可撤销。",
+		memoPermanentlyDeleted: "备忘录已永久删除。",
 		deleteAll: "全部删除",
 		sourceFileNoLongerExists: "源文件已不存在。",
 		couldNotLocateBlock: "无法定位原始备忘录块。",
@@ -380,6 +400,10 @@ const zhCN: TranslationStrings = {
 		memoReadModeAll: "全部文件",
 		memoReadModeDaily: "仅每日笔记",
 		memoReadModeYearly: "仅年度文件",
+		memoStoreHeading: "写入标题",
+		memoStoreHeadingDesc: "使用每日笔记时，备忘录将写入到该标题下方。留空则写入文件顶部。",
+		memoReadHeading: "读取标题",
+		memoReadHeadingDesc: "仅读取每日笔记中该标题下的备忘录。留空则读取整个文件。",
 	},
 	share: {
 		copyImage: "复制图片",

@@ -48,10 +48,12 @@ export class MemosView extends ItemView {
 	private visibleMemoCount = MEMOS_PAGE_SIZE;
 	private composerValue = "";
 	private isComposerExpanded = false;
+	private isComposerPreview = false;
 	private hasScrolledMemoStream = false;
 	private editingMemo: MemoEntry | null = null;
 	private inlineEditingMemoId: string | null = null;
 	private inlineEditorValue = "";
+	private isInlineEditorPreview = false;
 	private sidebarEl: HTMLElement | null = null;
 	private sidebarOverlayEl: HTMLElement | null = null;
 
@@ -175,7 +177,7 @@ export class MemosView extends ItemView {
 				return;
 			}
 			const target = event.target as HTMLElement | null;
-			if (target?.closest(".memos-inline-editor-body")) {
+			if (target?.closest(".memos-inline-editor") || target?.closest(".memos-card")) {
 				return;
 			}
 			this.cancelInlineEditing();
@@ -209,6 +211,7 @@ export class MemosView extends ItemView {
 			this.plugin.settings.timestampFormat,
 			this.plugin.settings.memoStoreMode,
 			this.plugin.settings.memoReadMode,
+			this.plugin.settings.memoReadHeading,
 			this.plugin.settings.boundFilePath || undefined,
 		);
 		const viewModel = buildViewModel(
@@ -344,8 +347,12 @@ export class MemosView extends ItemView {
 					cancelHideHeatmapPreview();
 					heatmapPreviewEl.removeClass("is-visible");
 					this.activeDayKey = this.activeDayKey === cell.dayKey ? null : cell.dayKey;
+					this.viewFilter = "none";
+					this.activeTag = null;
 					this.resetVisibleMemoCount();
 					this.updateHeatmapCellStates();
+					this.updateViewFilterButtonStates();
+					this.updateTagFilterButtonStates();
 					this.updateTitleDateState();
 					this.closeSidebar();
 					this.renderFilteredMemoStream();
@@ -457,9 +464,17 @@ export class MemosView extends ItemView {
 		labelEl.createSpan({ text: label });
 		buttonEl.createSpan({ cls: "memos-status-filter-count", text: String(count) });
 		buttonEl.addEventListener("click", () => {
-			this.statusFilter = this.statusFilter === filter ? "active" : filter;
+			if (filter === "all") {
+				this.statusFilter = "all";
+			} else {
+				this.statusFilter = this.statusFilter === filter ? "all" : filter;
+			}
+			this.viewFilter = "none";
+			this.activeTag = null;
 			this.resetVisibleMemoCount();
 			this.updateStatusFilterButtonStates();
+			this.updateViewFilterButtonStates();
+			this.updateTagFilterButtonStates();
 			this.refreshSidebarTagTree();
 			this.closeSidebar();
 			this.renderFilteredMemoStream();
@@ -619,6 +634,20 @@ export class MemosView extends ItemView {
 			cls: "memos-composer-input",
 			placeholder: t("view.composerPlaceholder"),
 		});
+		const previewEl = editorWrapEl.createDiv({ cls: "memos-composer-preview markdown-rendered" });
+		previewEl.addEventListener("dblclick", () => {
+			if (!this.isComposerPreview) {
+				return;
+			}
+			this.isComposerPreview = false;
+			const previewBtn = composerEl.querySelector(".memos-preview-toggle");
+			if (previewBtn instanceof HTMLElement) {
+				setIcon(previewBtn, "eye");
+				previewBtn.removeClass("is-active");
+			}
+			renderPreviewState();
+			textareaEl.focus();
+		});
 		const wikilinkSuggestEl = editorWrapEl.createDiv({ cls: "memos-wikilink-suggest", attr: { hidden: "hidden" } });
 		const tagSuggestEl = editorWrapEl.createDiv({ cls: "memos-wikilink-suggest memos-tag-suggest", attr: { hidden: "hidden" } });
 		const selectionToolbar = editorWrapEl.createDiv({ cls: "memos-selection-toolbar" });
@@ -628,6 +657,9 @@ export class MemosView extends ItemView {
 		textareaEl.value = this.composerValue;
 		textareaEl.addEventListener("input", () => {
 			this.composerValue = textareaEl.value;
+			if (this.isComposerPreview) {
+				void this.renderComposerPreview(previewEl);
+			}
 		});
 		textareaEl.addEventListener("paste", (event) => {
 			void this.handleTextareaPaste(
@@ -636,15 +668,52 @@ export class MemosView extends ItemView {
 				this.editingMemo?.sourcePath ?? this.plugin.getTodayDailyNotePath(),
 				(value) => {
 					this.composerValue = value;
+					if (this.isComposerPreview) {
+						void this.renderComposerPreview(previewEl);
+					}
 				},
 			);
 		});
+
+		const renderPreviewState = async (): Promise<void> => {
+			if (this.isComposerPreview) {
+				textareaEl.addClass("is-hidden");
+				selectionToolbar.addClass("is-hidden");
+				previewEl.addClass("is-visible");
+				await this.renderComposerPreview(previewEl);
+			} else {
+				textareaEl.removeClass("is-hidden");
+				selectionToolbar.removeClass("is-hidden");
+				previewEl.removeClass("is-visible");
+				previewEl.empty();
+			}
+		};
 
 		const footerEl = composerEl.createDiv({ cls: "memos-composer-footer" });
 		const toolsEl = footerEl.createDiv({ cls: "memos-composer-tools" });
 		this.createFormattingTools(toolsEl, textareaEl, (value) => {
 			this.composerValue = value;
+			if (this.isComposerPreview) {
+				void this.renderComposerPreview(previewEl);
+			}
 		});
+		this.createToolDivider(toolsEl);
+		this.createToolButton(toolsEl, this.isComposerPreview ? "pencil" : "eye", t("view.togglePreview"), () => {
+			this.isComposerPreview = !this.isComposerPreview;
+			const previewBtn = toolsEl.querySelector(".memos-preview-toggle");
+			if (previewBtn instanceof HTMLElement) {
+				setIcon(previewBtn, this.isComposerPreview ? "pencil" : "eye");
+				previewBtn.toggleClass("is-active", this.isComposerPreview);
+			}
+			renderPreviewState();
+		});
+		const previewToggle = toolsEl.querySelector(".memos-tool-button:last-child");
+		if (previewToggle instanceof HTMLElement) {
+			previewToggle.addClass("memos-preview-toggle");
+			if (this.isComposerPreview) {
+				previewToggle.addClass("is-active");
+			}
+		}
 		this.bindTextareaWikilinkSuggest(
 			textareaEl,
 			wikilinkSuggestEl,
@@ -657,6 +726,8 @@ export class MemosView extends ItemView {
 			this.composerValue = value;
 		});
 
+		renderPreviewState();
+
 		const submitButton = footerEl.createEl("button", {
 			cls: "memos-submit",
 			text: t("view.saveMemo"),
@@ -667,6 +738,21 @@ export class MemosView extends ItemView {
 		});
 
 		return composerEl;
+	}
+
+	private async renderComposerPreview(previewEl: HTMLElement): Promise<void> {
+		previewEl.empty();
+		if (!this.composerValue.trim()) {
+			previewEl.createDiv({ cls: "memos-composer-preview-empty", text: t("view.composerPlaceholder") });
+			return;
+		}
+		await MarkdownRenderer.render(
+			this.app,
+			this.composerValue,
+			previewEl,
+			this.editingMemo?.sourcePath ?? this.plugin.getTodayDailyNotePath(),
+			this,
+		);
 	}
 
 	private renderMemoStream(parentEl: HTMLElement, memos: MemoEntry[]): void {
@@ -751,6 +837,7 @@ export class MemosView extends ItemView {
 			this.plugin.settings.timestampFormat,
 			this.plugin.settings.memoStoreMode,
 			this.plugin.settings.memoReadMode,
+			this.plugin.settings.memoReadHeading,
 			this.plugin.settings.boundFilePath || undefined,
 		);
 		this.refreshSidebarStatusCounts();
@@ -912,7 +999,7 @@ export class MemosView extends ItemView {
 
 	private autosizeTextarea(textareaEl: HTMLTextAreaElement): void {
 		textareaEl.style.height = "auto";
-		textareaEl.style.height = `${Math.max(textareaEl.scrollHeight, 260)}px`;
+		textareaEl.style.height = `${textareaEl.scrollHeight}px`;
 	}
 
 	private createSelectionToolbar(
@@ -972,12 +1059,14 @@ export class MemosView extends ItemView {
 			toolbarEl.removeClass("is-visible");
 			return;
 		}
-		const charWidth = parseFloat(getComputedStyle(textareaEl).fontSize) * 0.55;
-		const lastLineStart = textareaEl.value.lastIndexOf("\n", start - 1) + 1;
-		const colOffset = start - lastLineStart;
-		const left = Math.min(colOffset * charWidth, textareaEl.clientWidth - 280);
-		toolbarEl.style.top = "-40px";
-		toolbarEl.style.left = `${Math.max(0, left)}px`;
+		const caretOffset = this.measureTextareaCaretOffset(textareaEl);
+		const toolbarHeight = 36;
+		const gap = 6;
+		const top = caretOffset.top - toolbarHeight - gap;
+		const maxLeft = Math.max(0, textareaEl.clientWidth - toolbarEl.offsetWidth || textareaEl.clientWidth - 280);
+		const left = Math.min(Math.max(0, caretOffset.left), maxLeft);
+		toolbarEl.style.top = `${top}px`;
+		toolbarEl.style.left = `${left}px`;
 		toolbarEl.addClass("is-visible");
 
 		const value = textareaEl.value;
@@ -1408,6 +1497,23 @@ export class MemosView extends ItemView {
 		await this.render();
 	}
 
+	private async permanentlyDeleteMemo(memo: MemoEntry): Promise<void> {
+		if (!memo.deletedAt) {
+			return;
+		}
+
+		const confirmed = window.confirm(t("notices.permanentlyDeleteConfirm"));
+		if (!confirmed) {
+			return;
+		}
+
+		await this.plugin.permanentlyDeleteMarkedMemos([memo]);
+		this.inlineEditingMemoId = null;
+		this.inlineEditorValue = "";
+		new Notice(t("notices.memoPermanentlyDeleted"));
+		await this.render();
+	}
+
 	private openDeletedFilterMenu(event: MouseEvent): void {
 		const menu = new Menu();
 		menu.addItem((item) =>
@@ -1650,6 +1756,7 @@ export class MemosView extends ItemView {
 			cls: "memos-inline-editor-input",
 			placeholder: t("view.composerPlaceholder"),
 		});
+		const previewEl = editorWrapEl.createDiv({ cls: "memos-inline-editor-preview markdown-rendered" });
 		const wikilinkSuggestEl = editorWrapEl.createDiv({ cls: "memos-wikilink-suggest", attr: { hidden: "hidden" } });
 		const tagSuggestEl = editorWrapEl.createDiv({ cls: "memos-wikilink-suggest memos-tag-suggest", attr: { hidden: "hidden" } });
 		const selectionToolbar = editorWrapEl.createDiv({ cls: "memos-selection-toolbar" });
@@ -1669,11 +1776,53 @@ export class MemosView extends ItemView {
 		});
 		this.autosizeTextarea(textareaEl);
 
+		const renderPreviewState = async (): Promise<void> => {
+			if (this.isInlineEditorPreview) {
+				textareaEl.addClass("is-hidden");
+				selectionToolbar.addClass("is-hidden");
+				previewEl.addClass("is-visible");
+				await this.renderInlineEditorPreview(previewEl, memo);
+			} else {
+				textareaEl.removeClass("is-hidden");
+				selectionToolbar.removeClass("is-hidden");
+				previewEl.removeClass("is-visible");
+				previewEl.empty();
+			}
+		};
+
+		previewEl.addEventListener("dblclick", () => {
+			if (!this.isInlineEditorPreview) {
+				return;
+			}
+			this.isInlineEditorPreview = false;
+			const previewBtn = editorEl.querySelector(".memos-inline-preview-toggle");
+			if (previewBtn instanceof HTMLElement) {
+				setIcon(previewBtn, "eye");
+				previewBtn.removeClass("is-active");
+			}
+			renderPreviewState();
+			textareaEl.focus();
+		});
+
 		const footerEl = editorEl.createDiv({ cls: "memos-inline-editor-footer" });
 		const toolsEl = footerEl.createDiv({ cls: "memos-inline-editor-tools" });
 		this.createFormattingTools(toolsEl, textareaEl, (value) => {
 			this.inlineEditorValue = value;
 		});
+		this.createToolDivider(toolsEl);
+		this.createToolButton(toolsEl, "eye", t("view.togglePreview"), () => {
+			this.isInlineEditorPreview = !this.isInlineEditorPreview;
+			const previewBtn = editorEl.querySelector(".memos-inline-preview-toggle");
+			if (previewBtn instanceof HTMLElement) {
+				setIcon(previewBtn, this.isInlineEditorPreview ? "pencil" : "eye");
+				previewBtn.toggleClass("is-active", this.isInlineEditorPreview);
+			}
+			renderPreviewState();
+		});
+		const inlinePreviewToggle = toolsEl.querySelector(".memos-tool-button:last-child");
+		if (inlinePreviewToggle instanceof HTMLElement) {
+			inlinePreviewToggle.addClass("memos-inline-preview-toggle");
+		}
 		this.bindTextareaWikilinkSuggest(textareaEl, wikilinkSuggestEl, memo.sourcePath, (value) => {
 			this.inlineEditorValue = value;
 		});
@@ -1712,6 +1861,21 @@ export class MemosView extends ItemView {
 			textareaEl.focus();
 			textareaEl.setSelectionRange(textareaEl.value.length, textareaEl.value.length);
 		}, 0);
+	}
+
+	private async renderInlineEditorPreview(previewEl: HTMLElement, memo: MemoEntry): Promise<void> {
+		previewEl.empty();
+		if (!this.inlineEditorValue.trim()) {
+			previewEl.createDiv({ cls: "memos-composer-preview-empty", text: t("view.composerPlaceholder") });
+			return;
+		}
+		await MarkdownRenderer.render(
+			this.app,
+			this.inlineEditorValue,
+			previewEl,
+			memo.sourcePath,
+			this,
+		);
 	}
 
 	private bindTextareaWikilinkSuggest(
@@ -2299,6 +2463,17 @@ export class MemosView extends ItemView {
 					void this.deleteMemo(memo);
 				}),
 		);
+		if (memo.deletedAt) {
+			menu.addItem((item) =>
+				item
+					.setTitle(t("notices.permanentlyDelete"))
+					.setIcon("trash")
+					.setWarning(true)
+					.onClick(() => {
+						void this.permanentlyDeleteMemo(memo);
+					}),
+			);
+		}
 		menu.addSeparator();
 		menu.addItem((item) =>
 			item
@@ -2413,6 +2588,7 @@ export class MemosView extends ItemView {
 		}
 		this.inlineEditingMemoId = null;
 		this.inlineEditorValue = "";
+		this.isInlineEditorPreview = false;
 		this.renderFilteredMemoStream();
 	}
 

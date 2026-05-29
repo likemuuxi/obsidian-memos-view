@@ -258,6 +258,25 @@ export default class MemosViewPlugin extends Plugin {
 		return `## ${year}-${month}-${day} ${weekdays[date.getDay()]}`;
 	}
 
+	private insertPayloadUnderHeading(body: string, payload: string, heading: string): string {
+		if (!body) {
+			return `${heading}\n\n${payload}`;
+		}
+		const headingLine = heading.startsWith("#") ? heading : `## ${heading}`;
+		const headingIndex = body.indexOf(headingLine);
+		if (headingIndex === -1) {
+			return `${headingLine}\n\n${payload}\n\n${body}`;
+		}
+		const afterHeading = headingIndex + headingLine.length;
+		const headingLevel = headingLine.match(/^(#{1,6})\s/)?.[1]?.length ?? 2;
+		const nextHeadingPattern = new RegExp(`\\n#{1,${headingLevel}} `);
+		const nextHeadingMatch = body.slice(afterHeading).search(nextHeadingPattern);
+		const sectionEnd = nextHeadingMatch === -1 ? body.length : afterHeading + nextHeadingMatch;
+		const before = body.slice(0, sectionEnd);
+		const after = body.slice(sectionEnd);
+		return `${before}\n${payload}\n${after}`;
+	}
+
 	async appendMemoToToday(content: string, options: { refresh?: boolean } = {}): Promise<void> {
 		const normalized = content.trim();
 		if (!normalized) {
@@ -281,7 +300,13 @@ export default class MemosViewPlugin extends Plugin {
 			const rawContent = await this.app.vault.cachedRead(existing);
 			const { frontmatter, body } = splitFrontmatter(rawContent);
 			const normalizedBody = body.replace(/\r\n/g, "\n").trim();
-			const nextBody = normalizedBody ? `${payload}\n\n${normalizedBody}` : payload;
+			let nextBody: string;
+			const storeHeading = this.settings.memoStoreHeading.trim();
+			if (storeHeading) {
+				nextBody = this.insertPayloadUnderHeading(normalizedBody, payload, storeHeading);
+			} else {
+				nextBody = normalizedBody ? `${payload}\n\n${normalizedBody}` : payload;
+			}
 			const nextFileContent = frontmatter
 				? `${frontmatter}\n\n${nextBody}`
 				: nextBody;
@@ -291,8 +316,10 @@ export default class MemosViewPlugin extends Plugin {
 			if (folder) {
 				await this.app.vault.createFolder(folder).catch(() => undefined);
 			}
+			const storeHeading = this.settings.memoStoreHeading.trim();
+			const fileContent = storeHeading ? `${storeHeading}\n\n${payload}\n` : payload;
 			this.suppressVaultRefresh(filePath);
-			await this.app.vault.create(filePath, payload);
+			await this.app.vault.create(filePath, fileContent);
 		}
 
 		if (options.refresh !== false) {
@@ -315,7 +342,24 @@ export default class MemosViewPlugin extends Plugin {
 			const headingIndex = normalizedBody.indexOf(dayHeading);
 			let nextBody: string;
 			if (headingIndex === -1) {
-				nextBody = `# ${year}\n\n${dayHeading}\n${sectionBlock}\n${normalizedBody ? normalizedBody : ""}`.trim();
+				const yearHeading = `# ${year}`;
+				const yearHeadingIndex = normalizedBody.indexOf(yearHeading);
+				if (yearHeadingIndex !== -1) {
+					const afterYearHeading = yearHeadingIndex + yearHeading.length;
+					const afterYearHeadingText = normalizedBody.slice(afterYearHeading);
+					const nextH2Match = afterYearHeadingText.search(/\n## /);
+					let insertPos: number;
+					if (nextH2Match !== -1) {
+						insertPos = afterYearHeading + nextH2Match;
+					} else {
+						insertPos = normalizedBody.length;
+					}
+					const before = normalizedBody.slice(0, insertPos);
+					const after = normalizedBody.slice(insertPos);
+					nextBody = `${before}\n\n${dayHeading}\n${sectionBlock}\n${after}`.replace(/\n{3,}/g, "\n\n");
+				} else {
+					nextBody = `# ${year}\n\n${dayHeading}\n${sectionBlock}\n${normalizedBody ? normalizedBody : ""}`.trim();
+				}
 			} else {
 				const afterHeading = headingIndex + dayHeading.length;
 				const nextHeadingMatch = normalizedBody.slice(afterHeading).search(/\n## /);

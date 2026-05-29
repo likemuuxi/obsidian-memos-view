@@ -8,6 +8,7 @@ export async function loadMemosFromDailyNotes(
 	timestampFormat: string,
 	memoStoreMode: "daily" | "yearly",
 	memoReadMode: "all" | "daily" | "yearly",
+	memoReadHeading: string,
 	excludedFilePath?: string,
 ): Promise<MemoEntry[]> {
 	const effectiveReadMode = memoReadMode === "all" ? "all" : memoReadMode;
@@ -22,7 +23,7 @@ export async function loadMemosFromDailyNotes(
 			if (isYearlyFile(file)) {
 				return parseYearlyNoteToMemos(file, content, timestampFormat);
 			}
-			return parseDailyNoteToMemos(file, content, timestampFormat);
+			return parseDailyNoteToMemos(file, content, timestampFormat, memoReadHeading);
 		}),
 	);
 

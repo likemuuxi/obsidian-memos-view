@@ -615,9 +615,8 @@
 .memos-composer-input {
 	width: 100%;
 	min-height: 100px;
-	max-height: 400px;
 	padding: 0;
-	resize: none;
+	resize: vertical;
 	border: 0;
 	background: transparent !important;
 	box-shadow: none !important;
@@ -628,6 +627,26 @@
 
 .memos-composer-input:focus {
 	outline: none;
+}
+
+.memos-composer-input.is-hidden {
+	display: none;
+}
+
+.memos-composer-preview {
+	display: none;
+	min-height: 100px;
+	padding: 8px 0;
+	line-height: 1.6;
+}
+
+.memos-composer-preview.is-visible {
+	display: block;
+}
+
+.memos-composer-preview-empty {
+	color: var(--text-faint);
+	font-style: italic;
 }
 
 .memos-composer-editor,
@@ -651,6 +670,10 @@
 		0 1px 4px rgba(0, 0, 0, 0.06);
 	backdrop-filter: blur(8px);
 	-webkit-backdrop-filter: blur(8px);
+}
+
+.memos-selection-toolbar.is-hidden {
+	display: none !important;
 }
 
 .memos-selection-toolbar.is-visible {
@@ -1116,6 +1139,21 @@
 
 .memos-inline-editor-input:focus {
 	outline: none;
+}
+
+.memos-inline-editor-input.is-hidden {
+	display: none;
+}
+
+.memos-inline-editor-preview {
+	display: none;
+	min-height: 200px;
+	padding: 8px 0;
+	line-height: 1.6;
+}
+
+.memos-inline-editor-preview.is-visible {
+	display: block;
 }
 
 .memos-inline-editor-footer {

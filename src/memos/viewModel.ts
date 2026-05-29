@@ -80,10 +80,11 @@ export function buildViewModel(
 		})
 		.sort((left, right) => compareMemos(left, right, sortOrder));
 
+	const activeMemos = memos.filter((memo) => !memo.archivedAt && !memo.deletedAt);
 	const tagCounts = new Map<string, number>();
 	const dayCounts = new Map<string, number>();
 
-	for (const memo of scopedMemos) {
+	for (const memo of activeMemos) {
 		dayCounts.set(memo.dayKey, (dayCounts.get(memo.dayKey) ?? 0) + 1);
 		for (const tag of memo.tags) {
 			tagCounts.set(tag, (tagCounts.get(tag) ?? 0) + 1);
@@ -92,7 +93,7 @@ export function buildViewModel(
 
 	const heatmapMax = Math.max(...dayCounts.values(), 1);
 	const dayPreviews = new Map<string, HeatmapCellPreview[]>();
-	for (const memo of scopedMemos) {
+	for (const memo of activeMemos) {
 		const list = dayPreviews.get(memo.dayKey) ?? [];
 		if (list.length < 5) {
 			list.push({ time: memo.createdLabel, content: memo.content.trim() });
@@ -110,7 +111,7 @@ export function buildViewModel(
 		tagStats,
 		heatmap,
 		heatmapMonths,
-		totalMemos: scopedMemos.length,
+		totalMemos: activeMemos.length,
 		totalTags: tagCounts.size,
 		totalDays: dayCounts.size,
 	};

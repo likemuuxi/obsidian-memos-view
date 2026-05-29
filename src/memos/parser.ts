@@ -21,16 +21,26 @@ export interface MemoBlockRange {
 	line: number;
 }
 
-export function parseDailyNoteToMemos(file: TFile, content: string, timestampFormat: string): MemoEntry[] {
-	const normalizedBody = splitFrontmatter(content).body.replace(/\r\n/g, "\n").trim();
+export function parseDailyNoteToMemos(file: TFile, content: string, timestampFormat: string, readHeading?: string): MemoEntry[] {
+	const { frontmatter, body } = splitFrontmatter(content);
+	let normalizedBody = body.replace(/\r\n/g, "\n").trim();
 	if (!normalizedBody) {
 		return [];
+	}
+
+	const headingTrimmed = readHeading?.trim();
+	if (headingTrimmed) {
+		normalizedBody = extractSectionUnderHeading(normalizedBody, headingTrimmed);
+		if (!normalizedBody) {
+			return [];
+		}
 	}
 
 	const fileDayTimestamp = getFileDayTimestamp(file);
 	const dayKey = formatDayKey(fileDayTimestamp);
 	const bodyLineOffset = getBodyLineOffset(content);
-	const blocks = getMemoBlockRanges(content)
+	const contentForBlockParsing = frontmatter ? `${frontmatter}\n\n${normalizedBody}` : normalizedBody;
+	const blocks = getMemoBlockRanges(contentForBlockParsing)
 		.map((block, sourceIndex) => {
 			const parsedBlock = parseMemoBlock(block.raw, timestampFormat);
 			if (!parsedBlock) {
@@ -549,4 +559,18 @@ function countLeadingBlankLines(text: string): number {
 		}
 	}
 	return count;
+}
+
+function extractSectionUnderHeading(body: string, heading: string): string {
+	const headingLine = heading.startsWith("#") ? heading : `## ${heading}`;
+	const headingIndex = body.indexOf(headingLine);
+	if (headingIndex === -1) {
+		return "";
+	}
+	const afterHeading = headingIndex + headingLine.length;
+	const headingLevel = headingLine.match(/^(#{1,6})\s/)?.[1]?.length ?? 2;
+	const nextHeadingPattern = new RegExp(`\\n#{1,${headingLevel}} `);
+	const nextHeadingMatch = body.slice(afterHeading).search(nextHeadingPattern);
+	const sectionEnd = nextHeadingMatch === -1 ? body.length : afterHeading + nextHeadingMatch;
+	return body.slice(afterHeading, sectionEnd).replace(/^\n+/, "").replace(/\n+$/, "");
 }
