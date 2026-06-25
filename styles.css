@@ -123,10 +123,35 @@
 	display: none;
 }
 
+.memos-heatmap-preview-content {
+	font-family: var(--font-text);
+}
+
 .memos-heatmap-preview-content ul,
 .memos-heatmap-preview-content ol {
 	margin: 0;
 	padding: 0 0 0 2.2em;
+}
+
+.memos-heatmap-preview-content a {
+	overflow-wrap: anywhere;
+	word-break: break-all;
+}
+
+.memos-heatmap-preview-content table {
+	border-collapse: collapse;
+	margin: 4px 0;
+}
+
+.memos-heatmap-preview-content th,
+.memos-heatmap-preview-content td {
+	border: 1px solid var(--background-modifier-border);
+	padding: 2px 6px;
+}
+
+.memos-heatmap-preview-content code,
+.memos-heatmap-preview-content pre {
+	font-family: var(--font-monospace);
 }
 
 .memos-heatmap-grid {
@@ -411,9 +436,9 @@
 	display: block;
 	width: 0;
 	height: 0;
-	border-top: 4px solid transparent;
-	border-bottom: 4px solid transparent;
-	border-left: 5px solid var(--text-faint);
+	border-top: 5px solid transparent;
+	border-bottom: 5px solid transparent;
+	border-left: 6px solid var(--text-faint);
 	transition: transform 100ms ease;
 }
 
@@ -488,8 +513,9 @@
 
 .memos-title-home.is-icon {
 	justify-content: center;
-	width: 20px;
-	height: 20px;
+	width: 28px;
+	height: 28px;
+	border-radius: 6px;
 }
 
 .memos-title-home.is-icon svg {
@@ -933,7 +959,41 @@
 	min-height: 0;
 	overflow-y: auto;
 	overflow-x: hidden;
-	padding: 8px 0 80px;
+	padding: 0 0 80px;
+	position: relative;
+}
+
+.memos-sticky-day-head {
+	position: sticky;
+	top: 4px;
+	z-index: 2;
+	display: flex;
+	align-items: center;
+	align-self: start;
+	width: fit-content;
+	height: 26px;
+	/* margin: 0 8px 4px; */
+	padding: 0 12px;
+	background: var(--background-secondary);
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 13px;
+	box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+	opacity: 0;
+	pointer-events: none;
+	transition: opacity 100ms ease;
+}
+
+.memos-sticky-day-head.is-visible {
+	opacity: 1;
+	pointer-events: auto;
+	cursor: pointer;
+}
+
+.memos-sticky-day-head-label {
+	font-size: 13px;
+	font-weight: 600;
+	color: var(--text-muted);
+	white-space: nowrap;
 }
 
 .memos-back-to-top {
@@ -979,6 +1039,7 @@
 	display: flex;
 	flex-direction: column;
 	gap: 8px;
+	padding-top: 8px;
 }
 
 .memos-day-head {
@@ -994,6 +1055,7 @@
 
 .memos-day-head-label {
 	font-size: 13px;
+	padding-left: 8px;
 	font-weight: 600;
 	color: var(--text-muted);
 	white-space: nowrap;

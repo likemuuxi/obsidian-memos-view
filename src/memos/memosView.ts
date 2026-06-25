@@ -8,6 +8,7 @@ import { t } from "../i18n";
 import type { MemoEntry, MemosViewState } from "../types";
 import { loadMemosFromDailyNotes } from "./memoStore";
 import { buildViewModel } from "./viewModel";
+import type { HeatmapWeek, HeatmapMonthLabel } from "./viewModel";
 import {
 	applyWikilinkSuggestion,
 	createBlockId,
@@ -37,6 +38,7 @@ export class MemosView extends ItemView {
 	private state: MemosViewState = {};
 	private memos: MemoEntry[] = [];
 	private memoStreamContainerEl: HTMLElement | null = null;
+	private stickyDayHeadEl: HTMLElement | null = null;
 	private collapsedTagPaths = new Set<string>();
 	private searchTerm = "";
 	private isSearchComposing = false;
@@ -56,6 +58,7 @@ export class MemosView extends ItemView {
 	private isInlineEditorPreview = false;
 	private sidebarEl: HTMLElement | null = null;
 	private sidebarOverlayEl: HTMLElement | null = null;
+	private isSidebarOpen = false;
 
 	constructor(leaf: WorkspaceLeaf, plugin: MemosViewPlugin) {
 		super(leaf);
@@ -201,13 +204,63 @@ export class MemosView extends ItemView {
 		this.renderTopbar(mainHeaderEl);
 		const composerEl = this.renderComposer(mainHeaderEl);
 		const bodyEl = mainEl.createDiv({ cls: "memos-main-body" });
+		const stickyDayHeadEl = bodyEl.createDiv({ cls: "memos-sticky-day-head" });
+		stickyDayHeadEl.createSpan({ cls: "memos-sticky-day-head-label" });
+		stickyDayHeadEl.addEventListener("click", () => {
+			const labelText = stickyDayHeadEl.querySelector(".memos-sticky-day-head-label")?.textContent ?? "";
+			if (!labelText) {
+				return;
+			}
+			const dayHeads = bodyEl.querySelectorAll<HTMLElement>(".memos-day-head");
+			for (let i = 0; i < dayHeads.length; i++) {
+				const head = dayHeads.item(i);
+				if (head.querySelector(".memos-day-head-label")?.textContent === labelText) {
+					head.scrollIntoView({ behavior: "smooth", block: "start" });
+					break;
+				}
+			}
+		});
 		const backToTopButtonEl = this.createBackToTopButton(mainEl, bodyEl);
 		this.memoStreamContainerEl = bodyEl;
+		this.stickyDayHeadEl = stickyDayHeadEl;
 		this.bindMainInteractions(shellEl, composerEl, bodyEl, backToTopButtonEl);
+
+		// 检查日记插件路径是否已设置
+		const dailyNotesFolder = this.plugin.getDailyNotesFolder();
+		if (!dailyNotesFolder) {
+			// 清空备忘录数据
+			this.memos = [];
+			const viewModel = buildViewModel(
+				this.memos,
+				this.searchTerm,
+				this.activeTag,
+				this.activeDayKey,
+				this.sortOrder,
+				this.statusFilter,
+				this.viewFilter,
+			);
+			
+			this.populateSidebar(
+				sidebarEl,
+				viewModel.totalMemos,
+				viewModel.totalTags,
+				viewModel.totalDays,
+				viewModel.heatmap,
+				viewModel.heatmapMonths,
+				viewModel.tagStats,
+				this.getStatusCounts(),
+			);
+			this.renderMemoStream(bodyEl, viewModel.filteredMemos);
+			this.updateStickyDayHead();
+			if (this.isSidebarOpen) {
+				this.openSidebar();
+			}
+			return;
+		}
 
 		this.memos = await loadMemosFromDailyNotes(
 			this.app,
-			this.plugin.getDailyNotesFolder(),
+			dailyNotesFolder,
 			this.plugin.settings.timestampFormat,
 			this.plugin.settings.memoStoreMode,
 			this.plugin.settings.memoReadMode,
@@ -235,14 +288,20 @@ export class MemosView extends ItemView {
 			this.getStatusCounts(),
 		);
 		this.renderMemoStream(bodyEl, viewModel.filteredMemos);
+		this.updateStickyDayHead();
+		if (this.isSidebarOpen) {
+			this.openSidebar();
+		}
 	}
 
 	private openSidebar(): void {
+		this.isSidebarOpen = true;
 		this.sidebarEl?.addClass("is-open");
 		this.sidebarOverlayEl?.addClass("is-visible");
 	}
 
 	private closeSidebar(): void {
+		this.isSidebarOpen = false;
 		this.sidebarEl?.removeClass("is-open");
 		this.sidebarOverlayEl?.removeClass("is-visible");
 	}
@@ -273,100 +332,7 @@ export class MemosView extends ItemView {
 		this.renderStat(statsEl, String(totalDays), t("view.days"));
 
 		const heatmapSectionEl = sidebarEl.createDiv({ cls: "memos-heatmap-section" });
-		const heatmapPreviewEl = document.body.createDiv({ cls: "memos-heatmap-preview" });
-		let heatmapPreviewTimer: ReturnType<typeof setTimeout> | null = null;
-
-		const scheduleHideHeatmapPreview = (): void => {
-			heatmapPreviewTimer = setTimeout(() => {
-				heatmapPreviewEl.removeClass("is-visible");
-			}, 150);
-		};
-
-		const cancelHideHeatmapPreview = (): void => {
-			if (heatmapPreviewTimer !== null) {
-				clearTimeout(heatmapPreviewTimer);
-				heatmapPreviewTimer = null;
-			}
-		};
-
-		heatmapPreviewEl.addEventListener("mouseenter", () => {
-			cancelHideHeatmapPreview();
-		});
-		heatmapPreviewEl.addEventListener("mouseleave", () => {
-			heatmapPreviewEl.removeClass("is-visible");
-		});
-
-		const heatmapGridEl = heatmapSectionEl.createDiv({ cls: "memos-heatmap-grid" });
-		heatmapGridEl.style.setProperty("--memos-heatmap-columns", String(heatmap.length));
-		heatmap.forEach((week) => {
-			const weekEl = heatmapGridEl.createDiv({ cls: "memos-heatmap-week" });
-			week.cells.forEach((cell) => {
-				const cellEl = weekEl.createEl("button", {
-					cls: `memos-heatmap-cell memos-heatmap-level-${cell.level}${cell.isToday ? " is-today" : ""}${this.activeDayKey === cell.dayKey ? " is-active" : ""}`,
-					attr: {
-						type: "button",
-						"aria-label": cell.dayKey,
-						"aria-pressed": String(this.activeDayKey === cell.dayKey),
-						"data-day-key": cell.dayKey,
-					},
-				});
-				cellEl.addEventListener("mouseenter", async () => {
-					cancelHideHeatmapPreview();
-					if (cell.count === 0) {
-						return;
-					}
-					heatmapPreviewEl.empty();
-					heatmapPreviewEl.createDiv({ cls: "memos-heatmap-preview-date", text: `${cell.dayKey} · ${cell.count}` });
-					for (const preview of cell.previews) {
-						const itemEl = heatmapPreviewEl.createDiv({ cls: "memos-heatmap-preview-item" });
-						itemEl.createDiv({ cls: "memos-heatmap-preview-time", text: preview.time });
-						const contentEl = itemEl.createDiv({ cls: "memos-heatmap-preview-content" });
-						await MarkdownRenderer.render(this.app, preview.content, contentEl, "", this);
-					}
-					const cellRect = cellEl.getBoundingClientRect();
-					const previewWidth = 280;
-					let left = cellRect.right + 8;
-					if (left + previewWidth > window.innerWidth) {
-						left = cellRect.left - previewWidth - 8;
-					}
-					if (left < 0) {
-						left = 4;
-					}
-					let top = cellRect.top;
-					if (top + 300 > window.innerHeight) {
-						top = window.innerHeight - 300;
-					}
-					heatmapPreviewEl.style.left = `${left}px`;
-					heatmapPreviewEl.style.top = `${top}px`;
-					heatmapPreviewEl.addClass("is-visible");
-				});
-				cellEl.addEventListener("mouseleave", () => {
-					scheduleHideHeatmapPreview();
-				});
-				cellEl.addEventListener("click", () => {
-					cancelHideHeatmapPreview();
-					heatmapPreviewEl.removeClass("is-visible");
-					this.activeDayKey = this.activeDayKey === cell.dayKey ? null : cell.dayKey;
-					this.viewFilter = "none";
-					this.activeTag = null;
-					this.resetVisibleMemoCount();
-					this.updateHeatmapCellStates();
-					this.updateViewFilterButtonStates();
-					this.updateTagFilterButtonStates();
-					this.updateTitleDateState();
-					this.closeSidebar();
-					this.renderFilteredMemoStream();
-				});
-			});
-		});
-
-		const heatmapMonthsEl = heatmapSectionEl.createDiv({ cls: "memos-heatmap-months" });
-		heatmapMonthsEl.style.setProperty("--memos-heatmap-columns", String(heatmap.length));
-		heatmapMonths.forEach((month) => {
-			const monthEl = heatmapMonthsEl.createDiv({ cls: "memos-heatmap-month" });
-			monthEl.setText(month.label);
-			monthEl.style.setProperty("grid-column", String(month.column));
-		});
+		this.populateHeatmapSection(heatmapSectionEl, heatmap, heatmapMonths);
 
 		const filtersEl = sidebarEl.createDiv({ cls: "memos-filters" });
 		this.renderStatusFilters(filtersEl, statusCounts);
@@ -392,7 +358,7 @@ export class MemosView extends ItemView {
 		const filters: Array<{ id: MemosViewFilter; label: string; icon: string }> = [
 			{ id: "today", label: t("viewFilters.today"), icon: "sun" },
 			{ id: "week", label: t("viewFilters.week"), icon: "calendar-range" },
-			{ id: "todo", label: t("viewFilters.todo"), icon: "square-check" },
+			{ id: "todo", label: t("viewFilters.todo"), icon: "check-square" },
 			{ id: "tagged", label: t("viewFilters.tagged"), icon: "tag" },
 			{ id: "has-image", label: t("viewFilters.hasImage"), icon: "image" },
 			{ id: "has-link", label: t("viewFilters.hasLink"), icon: "link" },
@@ -577,7 +543,7 @@ export class MemosView extends ItemView {
 					"aria-label": `Clear date filter ${this.activeDayKey}`,
 				},
 			});
-			setIcon(homeButton, "house");
+			setIcon(homeButton, "home");
 			homeButton.addEventListener("click", () => {
 				this.activeDayKey = null;
 				this.resetVisibleMemoCount();
@@ -596,7 +562,7 @@ export class MemosView extends ItemView {
 					"aria-label": t("view.displayName"),
 				},
 			});
-			setIcon(homeButton, "house");
+			setIcon(homeButton, "home");
 		}
 
 		const sortButton = titleEl.createEl("button", {
@@ -756,7 +722,7 @@ export class MemosView extends ItemView {
 	}
 
 	private renderMemoStream(parentEl: HTMLElement, memos: MemoEntry[]): void {
-		parentEl.empty();
+		parentEl.querySelectorAll(".memos-stream").forEach((el) => el.remove());
 		const listEl = parentEl.createDiv({ cls: "memos-stream" });
 		if (!memos.length) {
 			const emptyEl = listEl.createDiv({ cls: "memos-empty" });
@@ -823,6 +789,7 @@ export class MemosView extends ItemView {
 			this.viewFilter,
 		);
 		this.renderMemoStream(this.memoStreamContainerEl, viewModel.filteredMemos);
+		this.updateStickyDayHead();
 	}
 
 	private async refreshMemoStream(): Promise<void> {
@@ -842,7 +809,131 @@ export class MemosView extends ItemView {
 		);
 		this.refreshSidebarStatusCounts();
 		this.refreshSidebarTagTree();
+		this.refreshSidebarHeatmap();
 		this.renderFilteredMemoStream();
+	}
+
+	private refreshSidebarHeatmap(): void {
+		const sectionEl = this.sidebarEl?.querySelector(".memos-heatmap-section");
+		if (!(sectionEl instanceof HTMLElement)) {
+			return;
+		}
+		const viewModel = buildViewModel(
+			this.memos,
+			this.searchTerm,
+			this.activeTag,
+			this.activeDayKey,
+			this.sortOrder,
+			this.statusFilter,
+			this.viewFilter,
+		);
+		const previewEl = document.body.querySelector(".memos-heatmap-preview");
+		if (previewEl instanceof HTMLElement) {
+			previewEl.remove();
+		}
+		sectionEl.empty();
+		this.populateHeatmapSection(sectionEl, viewModel.heatmap, viewModel.heatmapMonths);
+	}
+
+	private populateHeatmapSection(
+		heatmapSectionEl: HTMLElement,
+		heatmap: HeatmapWeek[],
+		heatmapMonths: HeatmapMonthLabel[],
+	): void {
+		const heatmapPreviewEl = document.body.createDiv({ cls: "memos-heatmap-preview" });
+		let heatmapPreviewTimer: ReturnType<typeof setTimeout> | null = null;
+
+		const scheduleHideHeatmapPreview = (): void => {
+			heatmapPreviewTimer = setTimeout(() => {
+				heatmapPreviewEl.removeClass("is-visible");
+			}, 150);
+		};
+
+		const cancelHideHeatmapPreview = (): void => {
+			if (heatmapPreviewTimer !== null) {
+				clearTimeout(heatmapPreviewTimer);
+				heatmapPreviewTimer = null;
+			}
+		};
+
+		heatmapPreviewEl.addEventListener("mouseenter", () => {
+			cancelHideHeatmapPreview();
+		});
+		heatmapPreviewEl.addEventListener("mouseleave", () => {
+			heatmapPreviewEl.removeClass("is-visible");
+		});
+
+		const heatmapGridEl = heatmapSectionEl.createDiv({ cls: "memos-heatmap-grid" });
+		heatmapGridEl.style.setProperty("--memos-heatmap-columns", String(heatmap.length));
+		heatmap.forEach((week) => {
+			const weekEl = heatmapGridEl.createDiv({ cls: "memos-heatmap-week" });
+			week.cells.forEach((cell) => {
+				const cellEl = weekEl.createEl("button", {
+					cls: `memos-heatmap-cell memos-heatmap-level-${cell.level}${cell.isToday ? " is-today" : ""}${this.activeDayKey === cell.dayKey ? " is-active" : ""}`,
+					attr: {
+						type: "button",
+						"aria-label": cell.dayKey,
+						"aria-pressed": String(this.activeDayKey === cell.dayKey),
+						"data-day-key": cell.dayKey,
+					},
+				});
+				cellEl.addEventListener("mouseenter", async () => {
+					cancelHideHeatmapPreview();
+					if (cell.count === 0) {
+						return;
+					}
+					heatmapPreviewEl.empty();
+					heatmapPreviewEl.createDiv({ cls: "memos-heatmap-preview-date", text: `${cell.dayKey} · ${cell.count}` });
+					for (const preview of cell.previews) {
+						const itemEl = heatmapPreviewEl.createDiv({ cls: "memos-heatmap-preview-item" });
+						itemEl.createDiv({ cls: "memos-heatmap-preview-time", text: preview.time });
+						const contentEl = itemEl.createDiv({ cls: "memos-heatmap-preview-content" });
+						await MarkdownRenderer.render(this.app, preview.content, contentEl, "", this);
+					}
+					const cellRect = cellEl.getBoundingClientRect();
+					const previewWidth = 280;
+					let left = cellRect.right + 8;
+					if (left + previewWidth > window.innerWidth) {
+						left = cellRect.left - previewWidth - 8;
+					}
+					if (left < 0) {
+						left = 4;
+					}
+					let top = cellRect.top;
+					if (top + 300 > window.innerHeight) {
+						top = window.innerHeight - 300;
+					}
+					heatmapPreviewEl.style.left = `${left}px`;
+					heatmapPreviewEl.style.top = `${top}px`;
+					heatmapPreviewEl.addClass("is-visible");
+				});
+				cellEl.addEventListener("mouseleave", () => {
+					scheduleHideHeatmapPreview();
+				});
+				cellEl.addEventListener("click", () => {
+					cancelHideHeatmapPreview();
+					heatmapPreviewEl.removeClass("is-visible");
+					this.activeDayKey = this.activeDayKey === cell.dayKey ? null : cell.dayKey;
+					this.viewFilter = "none";
+					this.activeTag = null;
+					this.resetVisibleMemoCount();
+					this.updateHeatmapCellStates();
+					this.updateViewFilterButtonStates();
+					this.updateTagFilterButtonStates();
+					this.updateTitleDateState();
+					this.closeSidebar();
+					this.renderFilteredMemoStream();
+				});
+			});
+		});
+
+		const heatmapMonthsEl = heatmapSectionEl.createDiv({ cls: "memos-heatmap-months" });
+		heatmapMonthsEl.style.setProperty("--memos-heatmap-columns", String(heatmap.length));
+		heatmapMonths.forEach((month) => {
+			const monthEl = heatmapMonthsEl.createDiv({ cls: "memos-heatmap-month" });
+			monthEl.setText(month.label);
+			monthEl.style.setProperty("grid-column", String(month.column));
+		});
 	}
 
 	private refreshSidebarStatusCounts(): void {
@@ -1369,11 +1460,41 @@ export class MemosView extends ItemView {
 		bodyEl.addEventListener("scroll", () => {
 			this.hasScrolledMemoStream = true;
 			this.updateBackToTopButtonState(backToTopButtonEl, bodyEl.scrollTop > 240);
+			this.updateStickyDayHead();
 		});
 	}
 
 	private updateBackToTopButtonState(buttonEl: HTMLElement, visible: boolean): void {
 		buttonEl.toggleClass("is-visible", visible);
+	}
+
+	private updateStickyDayHead(): void {
+		if (!this.stickyDayHeadEl || !this.memoStreamContainerEl) {
+			return;
+		}
+		const containerTop = this.memoStreamContainerEl.getBoundingClientRect().top;
+		const dayHeads = this.memoStreamContainerEl.querySelectorAll<HTMLElement>(".memos-day-head");
+		let currentLabel = "";
+		for (let i = 0; i < dayHeads.length; i++) {
+			const head = dayHeads.item(i);
+			if (!head) {
+				continue;
+			}
+			const rect = head.getBoundingClientRect();
+			if (rect.top <= containerTop + 4) {
+				const labelEl = head.querySelector(".memos-day-head-label");
+				if (labelEl) {
+					currentLabel = labelEl.textContent ?? "";
+				}
+			} else {
+				break;
+			}
+		}
+		const labelEl = this.stickyDayHeadEl.querySelector(".memos-sticky-day-head-label");
+		if (labelEl && labelEl.textContent !== currentLabel) {
+			labelEl.textContent = currentLabel;
+		}
+		this.stickyDayHeadEl.toggleClass("is-visible", Boolean(currentLabel) && this.memoStreamContainerEl.scrollTop > 4);
 	}
 
 	private renderTagTree(parentEl: HTMLElement, nodes: TagTreeNode[], depth: number): void {
@@ -1548,20 +1669,6 @@ export class MemosView extends ItemView {
 
 		const metaEl = cardEl.createDiv({ cls: "memos-card-meta" });
 		const metaInfoEl = metaEl.createDiv({ cls: "memos-card-meta-info" });
-		const isYearlySource = /^\d{4}$/.test(memo.sourceBasename);
-		const sourceButton = metaInfoEl.createEl("button", {
-			cls: "memos-source-button",
-			text: isYearlySource ? memo.dayKey : memo.sourceBasename,
-		});
-		this.highlightSearchMatches(sourceButton);
-		sourceButton.addEventListener("click", () => {
-			if (isYearlySource) {
-				const headingText = formatYearlyDayHeading(memo.dayKey);
-				void this.plugin.openSourceFileAtHeading(memo.sourcePath, headingText);
-			} else {
-				void this.plugin.openSourceFile(memo.sourcePath);
-			}
-		});
 		const timestampButton = metaInfoEl.createEl("button", {
 			cls: "memos-timestamp-button",
 			text: memo.createdLabel,
@@ -2723,7 +2830,7 @@ class MemosRandomWalkModal extends Modal {
 			cls: "memos-random-walk-next",
 			attr: { type: "button", "aria-label": t("view.openSourceFile") },
 		});
-		setIcon(openFileButtonEl, "file-edit");
+		setIcon(openFileButtonEl, "file-pen");
 		openFileButtonEl.addEventListener("click", () => {
 			void this.openSourceAndClose(memo);
 		});
