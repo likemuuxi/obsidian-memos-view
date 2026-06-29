@@ -230,10 +230,17 @@ class MemoShareModal extends Modal {
 
 		const previewEl = this.previewWrapEl.createDiv({ cls: "memos-share-preview" });
 		const previewInnerEl = previewEl.createDiv({ cls: "memos-share-preview-inner" });
-		previewInnerEl.innerHTML = buildShareCardHtml(this.memo, this.selectedStyle, "preview", "", resolveShareTitle(this.customTitle, this.memo));
-		previewEl.style.position = "absolute";
-		previewEl.style.visibility = "hidden";
-		previewEl.style.pointerEvents = "none";
+		previewInnerEl.empty();
+		const previewCard = new DOMParser().parseFromString(
+			buildShareCardHtml(this.memo, this.selectedStyle, "preview", "", resolveShareTitle(this.customTitle, this.memo)),
+			"text/html",
+		);
+		previewInnerEl.append(...Array.from(previewCard.body.childNodes));
+		previewEl.setCssStyles({
+			position: "absolute",
+			visibility: "hidden",
+			pointerEvents: "none",
+		});
 		const contentEl = previewInnerEl.querySelector(".memos-share-card-content");
 		if (contentEl instanceof HTMLElement) {
 			contentEl.empty();
@@ -253,9 +260,11 @@ class MemoShareModal extends Modal {
 		}
 
 		this.fitPreviewToContainer(previewEl, previewInnerEl);
-		previewEl.style.position = "";
-		previewEl.style.visibility = "";
-		previewEl.style.pointerEvents = "";
+		previewEl.setCssStyles({
+			position: "",
+			visibility: "",
+			pointerEvents: "",
+		});
 		const nextHeight = previewEl.offsetHeight;
 		if (nextHeight > 0) {
 			this.previewWrapEl.style.minHeight = `${nextHeight}px`;
@@ -366,7 +375,11 @@ async function exportShareCardDomToBlob(
 	const surfaceEl = document.createElement("div");
 	surfaceEl.addClass("memos-share-export-surface");
 	surfaceEl.style.setProperty("--share-export-bg", style.background);
-	surfaceEl.innerHTML = buildShareCardHtml(memo, style, "image", "", resolvedTitle);
+	const exportCard = new DOMParser().parseFromString(
+		buildShareCardHtml(memo, style, "image", "", resolvedTitle),
+		"text/html",
+	);
+	surfaceEl.append(...Array.from(exportCard.body.childNodes));
 
 	const contentEl = surfaceEl.querySelector(".memos-share-card-content");
 	if (!(contentEl instanceof HTMLElement)) {
@@ -695,12 +708,14 @@ async function layoutRenderedMarkdown(
 ): Promise<TextLayout> {
 	const renderEl = document.createElement("div");
 	renderEl.addClass("markdown-rendered");
-	renderEl.style.position = "fixed";
-	renderEl.style.left = "-10000px";
-	renderEl.style.top = "0";
-	renderEl.style.width = `${maxWidth}px`;
-	renderEl.style.pointerEvents = "none";
-	renderEl.style.opacity = "0";
+	renderEl.setCssStyles({
+		position: "fixed",
+		left: "-10000px",
+		top: "0",
+		width: `${maxWidth}px`,
+		pointerEvents: "none",
+		opacity: "0",
+	});
 	document.body.appendChild(renderEl);
 
 	try {

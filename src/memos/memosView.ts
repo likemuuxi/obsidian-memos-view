@@ -1089,8 +1089,8 @@ export class MemosView extends ItemView {
 	}
 
 	private autosizeTextarea(textareaEl: HTMLTextAreaElement): void {
-		textareaEl.style.height = "auto";
-		textareaEl.style.height = `${textareaEl.scrollHeight}px`;
+		textareaEl.setCssStyles({ height: "auto" });
+		textareaEl.setCssStyles({ height: `${textareaEl.scrollHeight}px` });
 	}
 
 	private createSelectionToolbar(
@@ -2361,15 +2361,17 @@ export class MemosView extends ItemView {
 		const contentBeforeCursor = textareaEl.value.slice(0, cursor);
 		const contentAfterCursor = textareaEl.value.slice(cursor) || ".";
 
-		mirrorEl.style.position = "absolute";
-		mirrorEl.style.visibility = "hidden";
-		mirrorEl.style.pointerEvents = "none";
-		mirrorEl.style.whiteSpace = "pre-wrap";
-		mirrorEl.style.wordBreak = "break-word";
-		mirrorEl.style.overflowWrap = "anywhere";
-		mirrorEl.style.boxSizing = "border-box";
-		mirrorEl.style.left = "-9999px";
-		mirrorEl.style.top = "0";
+		mirrorEl.setCssStyles({
+			position: "absolute",
+			visibility: "hidden",
+			pointerEvents: "none",
+			whiteSpace: "pre-wrap",
+			wordBreak: "break-word",
+			overflowWrap: "anywhere",
+			boxSizing: "border-box",
+			left: "-9999px",
+			top: "0",
+		});
 		mirrorEl.style.width = `${textareaRect.width}px`;
 		mirrorEl.style.font = style.font;
 		mirrorEl.style.fontFamily = style.fontFamily;
