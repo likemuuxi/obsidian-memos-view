@@ -2333,3 +2333,106 @@ body.is-mobile .memos-inline-editor-input {
 	outline: 2px solid var(--interactive-accent);
 	outline-offset: 2px;
 }
+
+.memos-folder-picker {
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 6px;
+    padding: 4px 12px;
+    margin: 8px 0;
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+.memos-folder-picker-list .setting-item {
+    padding: 6px 0;
+    border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.memos-folder-picker-list .setting-item:last-child {
+    border-bottom: none;
+}
+
+.memos-folder-picker-actions {
+    padding: 8px 0;
+    border-top: 1px solid var(--background-modifier-border);
+    text-align: right;
+}
+
+.memos-folder-picker-btn {
+    font-size: 12px;
+    padding: 4px 12px;
+}
+
+/* ===== Quick Compose Modal ===== */
+.memos-quick-compose-modal .modal {
+	width: min(520px, calc(100vw - 40px));
+	max-width: 520px;
+}
+
+.memos-quick-compose-modal .modal-content {
+	padding: 20px;
+}
+
+.memos-quick-compose-title {
+	margin: 0 0 12px;
+	font-size: 18px;
+	font-weight: 600;
+	color: var(--text-normal);
+}
+
+.memos-quick-compose-input {
+	width: 100%;
+	min-height: 140px;
+	padding: 10px 12px;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 8px;
+	background: var(--background-secondary);
+	font: inherit;
+	line-height: 1.6;
+	color: var(--text-normal);
+	resize: vertical;
+	box-sizing: border-box;
+}
+
+.memos-quick-compose-input:focus {
+	outline: none;
+	border-color: var(--interactive-accent);
+	box-shadow: 0 0 0 2px color-mix(in srgb, var(--interactive-accent) 25%, transparent);
+}
+
+.memos-quick-compose-footer {
+	display: flex;
+	justify-content: flex-end;
+	gap: 8px;
+	margin-top: 12px;
+}
+
+.memos-quick-compose-cancel,
+.memos-quick-compose-send {
+	padding: 6px 16px;
+	border: 0;
+	border-radius: 8px;
+	font-size: 14px;
+	cursor: pointer;
+}
+
+.memos-quick-compose-cancel {
+	background: var(--background-modifier-hover) !important;
+	color: var(--text-muted) !important;
+	box-shadow: none !important;
+}
+
+.memos-quick-compose-cancel:hover {
+	color: var(--text-normal) !important;
+}
+
+.memos-quick-compose-send {
+	background: var(--interactive-accent) !important;
+	color: var(--text-on-accent) !important;
+	box-shadow: none !important;
+	font-weight: 500;
+}
+
+.memos-quick-compose-send:hover {
+	opacity: 0.92;
+}
