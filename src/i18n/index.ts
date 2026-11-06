@@ -85,8 +85,12 @@ interface TranslationStrings {
 		week: string;
 		todo: string;
 		tagged: string;
-		hasImage: string;
+		hasAttachment: string;
 		hasLink: string;
+		attachmentImage: string;
+		attachmentAudio: string;
+		attachmentVideo: string;
+		attachmentFile: string;
 	};
 	notices: {
 		writeSomethingFirst: string;
@@ -278,8 +282,12 @@ const en: TranslationStrings = {
 		week: "This week",
 		todo: "To-do",
 		tagged: "Has tags",
-		hasImage: "Has image",
+		hasAttachment: "Has attachment",
 		hasLink: "Has link",
+		attachmentImage: "Image",
+		attachmentAudio: "Audio",
+		attachmentVideo: "Video",
+		attachmentFile: "File",
 	},
 	notices: {
 		writeSomethingFirst: "Write something first.",
@@ -471,8 +479,12 @@ const zhCN: TranslationStrings = {
 		week: "本周",
 		todo: "待办",
 		tagged: "有标签",
-		hasImage: "有图片",
+		hasAttachment: "有附件",
 		hasLink: "有链接",
+		attachmentImage: "图片",
+		attachmentAudio: "音频",
+		attachmentVideo: "视频",
+		attachmentFile: "文件",
 	},
 	notices: {
 		writeSomethingFirst: "请先输入内容。",

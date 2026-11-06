@@ -42,7 +42,11 @@ export type MemosViewFilter =
 	| "week"
 	| "todo"
 	| "tagged"
+	| "has-attachment"
 	| "has-image"
+	| "has-audio"
+	| "has-video"
+	| "has-file"
 	| "has-link";
 
 export interface MemosViewModel {
@@ -149,14 +153,52 @@ function matchesViewFilter(memo: MemoEntry, viewFilter: MemosViewFilter): boolea
 			return /^[-*+]\s+\[[ xX]\]/m.test(memo.content);
 		case "tagged":
 			return memo.tags.length > 0;
+		case "has-attachment":
+			return collectAttachmentTypes(memo.content).size > 0;
 		case "has-image":
-			return /!\[\[.*?\]\]|!\[.*?\]\(.*?\)/.test(memo.content);
+			return collectAttachmentTypes(memo.content).has("image");
+		case "has-audio":
+			return collectAttachmentTypes(memo.content).has("audio");
+		case "has-video":
+			return collectAttachmentTypes(memo.content).has("video");
+		case "has-file":
+			return collectAttachmentTypes(memo.content).has("file");
 		case "has-link":
 			return /\[.*?\]\(.*?\)|\[\[.*?\]\]|https?:\/\/\S+/i.test(memo.content);
 		case "none":
 		default:
 			return true;
 	}
+}
+
+const ATTACHMENT_IMAGE_EXT = /\.(png|jpe?g|gif|svg|webp|bmp|ico|avif)(?=[?#]|$)/i;
+const ATTACHMENT_AUDIO_EXT = /\.(mp3|wav|ogg|m4a|flac|aac|opus)(?=[?#]|$)/i;
+const ATTACHMENT_VIDEO_EXT = /\.(mp4|webm|mov|mkv|avi|m4v)(?=[?#]|$)/i;
+
+/**
+ * 扫描 memo 内容中的附件嵌入(`![[...]]` / `![...](...)`),
+ * 返回其中包含的附件类型集合(image / audio / video / file)。
+ */
+function collectAttachmentTypes(content: string): Set<string> {
+	const types = new Set<string>();
+	const embedRegex = /!\[\[([^\]|]+)(?:\|[^\]]*)?\]\]|!\[[^\]]*\]\(([^)\s]+)(?:\s[^)]*)?\)/g;
+	let match: RegExpExecArray | null;
+	while ((match = embedRegex.exec(content)) !== null) {
+		const target = (match[1] ?? match[2] ?? "").trim();
+		if (!target) {
+			continue;
+		}
+		if (ATTACHMENT_IMAGE_EXT.test(target)) {
+			types.add("image");
+		} else if (ATTACHMENT_AUDIO_EXT.test(target)) {
+			types.add("audio");
+		} else if (ATTACHMENT_VIDEO_EXT.test(target)) {
+			types.add("video");
+		} else {
+			types.add("file");
+		}
+	}
+	return types;
 }
 
 function compareMemos(left: MemoEntry, right: MemoEntry, sortOrder: MemosSortOrder): number {

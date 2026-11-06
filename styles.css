@@ -1178,11 +1178,12 @@ body.is-mobile .memos-inline-editor-input {
 	width: 36px;
 	height: 36px;
 	padding: 0;
-	border: 1px solid var(--background-modifier-border);
+	border: none;
 	border-radius: 50%;
-	background: var(--background-elevated) !important;
-	box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15) !important;
-	color: var(--text-muted) !important;
+	/* 强制不透明的中性色:图片背景主题会把 --background-* 变量改成半透明,导致按钮透底 */
+	background: #f0f0f0 !important;
+	box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2) !important;
+	color: #555555 !important;
 	display: inline-flex;
 	align-items: center;
 	justify-content: center;
@@ -1200,9 +1201,19 @@ body.is-mobile .memos-inline-editor-input {
 }
 
 .memos-back-to-top:hover {
-	background: color-mix(in srgb, var(--background-elevated) 85%, var(--background-modifier-hover)) !important;
-	border-color: var(--background-modifier-hover);
-	color: var(--text-normal) !important;
+	background: #e4e4e4 !important;
+	color: #222222 !important;
+}
+
+/* 暗色主题下用深色不透明背景 */
+.theme-dark .memos-back-to-top {
+	background: #2c2c2c !important;
+	color: #aaaaaa !important;
+}
+
+.theme-dark .memos-back-to-top:hover {
+	background: #3a3a3a !important;
+	color: #eeeeee !important;
 }
 
 .memos-back-to-top svg {

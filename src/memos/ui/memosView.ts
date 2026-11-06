@@ -396,7 +396,6 @@ export class MemosView extends ItemView {
 			{ id: "week", label: t("viewFilters.week"), icon: "calendar-range" },
 			{ id: "todo", label: t("viewFilters.todo"), icon: "check-square" },
 			{ id: "tagged", label: t("viewFilters.tagged"), icon: "tag" },
-			{ id: "has-image", label: t("viewFilters.hasImage"), icon: "image" },
 			{ id: "has-link", label: t("viewFilters.hasLink"), icon: "link" },
 		];
 		for (const { id, label, icon } of filters) {
@@ -410,7 +409,7 @@ export class MemosView extends ItemView {
 			});
 			const iconEl = buttonEl.createSpan({ cls: "memos-view-filter-icon" });
 			setIcon(iconEl, icon);
-			buttonEl.createSpan({ text: label });
+			buttonEl.createSpan({ cls: "memos-view-filter-label", text: label });
 			buttonEl.addEventListener("click", () => {
 				this.viewFilter = this.viewFilter === id ? "none" : id;
 				this.resetVisibleMemoCount();
@@ -419,6 +418,24 @@ export class MemosView extends ItemView {
 				this.renderFilteredMemoStream();
 			});
 		}
+
+		// 有附件:放在最后,点击弹出二级菜单选择附件类型(全部/图片/音频/视频/文件)
+		const attachmentActive = this.isAttachmentFilterActive();
+		const attachmentButtonEl = wrapEl.createEl("button", {
+			cls: `memos-view-filter-button${attachmentActive ? " is-active" : ""}`,
+			attr: {
+				type: "button",
+				"aria-pressed": String(attachmentActive),
+				"aria-haspopup": "menu",
+				"data-view-filter": "has-attachment",
+			},
+		});
+		const attachmentIconEl = attachmentButtonEl.createSpan({ cls: "memos-view-filter-icon" });
+		setIcon(attachmentIconEl, "paperclip");
+		attachmentButtonEl.createSpan({ cls: "memos-view-filter-label", text: this.getAttachmentFilterLabel() });
+		attachmentButtonEl.addEventListener("click", (event) => {
+			this.openAttachmentFilterMenu(event);
+		});
 	}
 
 	private updateViewFilterButtonStates(): void {
@@ -427,10 +444,72 @@ export class MemosView extends ItemView {
 				return;
 			}
 			const id = buttonEl.dataset.viewFilter as MemosViewFilter | undefined;
-			const isActive = id === this.viewFilter;
+			const isActive = id === "has-attachment" ? this.isAttachmentFilterActive() : id === this.viewFilter;
 			buttonEl.toggleClass("is-active", isActive);
 			buttonEl.setAttribute("aria-pressed", String(isActive));
+			if (id === "has-attachment") {
+				const labelEl = buttonEl.querySelector(".memos-view-filter-label");
+				if (labelEl) {
+					labelEl.textContent = this.getAttachmentFilterLabel();
+				}
+			}
 		});
+	}
+
+	/** 当前是否启用了任意附件类筛选(has-attachment 或任一子类型) */
+	private isAttachmentFilterActive(): boolean {
+		return (
+			this.viewFilter === "has-attachment" ||
+			this.viewFilter === "has-image" ||
+			this.viewFilter === "has-audio" ||
+			this.viewFilter === "has-video" ||
+			this.viewFilter === "has-file"
+		);
+	}
+
+	/** 附件筛选项当前应显示的标签(选中子类型时显示子类型名) */
+	private getAttachmentFilterLabel(): string {
+		switch (this.viewFilter) {
+			case "has-image":
+				return t("viewFilters.attachmentImage");
+			case "has-audio":
+				return t("viewFilters.attachmentAudio");
+			case "has-video":
+				return t("viewFilters.attachmentVideo");
+			case "has-file":
+				return t("viewFilters.attachmentFile");
+			case "has-attachment":
+			default:
+				return t("viewFilters.hasAttachment");
+		}
+	}
+
+	/** 附件筛选二级菜单:选择全部附件或指定类型,再次点击已选项则清除筛选 */
+	private openAttachmentFilterMenu(event: MouseEvent): void {
+		const menu = new Menu();
+		const options: Array<{ id: MemosViewFilter; label: string; icon: string }> = [
+			{ id: "has-attachment", label: t("viewFilters.hasAttachment"), icon: "paperclip" },
+			{ id: "has-image", label: t("viewFilters.attachmentImage"), icon: "image" },
+			{ id: "has-audio", label: t("viewFilters.attachmentAudio"), icon: "audio-file" },
+			{ id: "has-video", label: t("viewFilters.attachmentVideo"), icon: "film" },
+			{ id: "has-file", label: t("viewFilters.attachmentFile"), icon: "file-text" },
+		];
+		for (const { id, label, icon } of options) {
+			menu.addItem((item) => {
+				item.setTitle(label).setIcon(icon);
+				if (this.viewFilter === id) {
+					item.setChecked(true);
+				}
+				item.onClick(() => {
+					this.viewFilter = this.viewFilter === id ? "none" : id;
+					this.resetVisibleMemoCount();
+					this.updateViewFilterButtonStates();
+					this.closeSidebar();
+					this.renderFilteredMemoStream();
+				});
+			});
+		}
+		menu.showAtMouseEvent(event);
 	}
 
 	private updateTagFilterButtonStates(): void {
