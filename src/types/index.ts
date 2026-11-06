@@ -1,3 +1,5 @@
+import type { WechatSettings } from "../wechat/types";
+
 export const VIEW_TYPE_MEMOS = "memos-view";
 export const VIEW_TYPE_MEMOS_SIDEBAR = "memos-view-sidebar";
 
@@ -11,6 +13,7 @@ export interface MemosPluginSettings {
 	memoReadHeading: string;
 	shareTitle: string;
 	imageEmbedStyle: "wikilink" | "markdown";
+	wechat: WechatSettings;
 }
 
 export interface MemoEntry {

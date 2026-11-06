@@ -3,6 +3,9 @@ interface TranslationStrings {
 		openMemosView: string;
 		openMemosSidebar: string;
 		refreshMemosView: string;
+		wechatStart: string;
+		wechatStop: string;
+		wechatLogin: string;
 	};
 	view: {
 		displayName: string;
@@ -50,6 +53,8 @@ interface TranslationStrings {
 		insertMention: string;
 		insertTag: string;
 		insertImage: string;
+		recordVoice: string;
+		stopRecording: string;
 		attachmentPickerSearch: string;
 		attachmentPickerEmpty: string;
 		boldSelection: string;
@@ -108,7 +113,17 @@ interface TranslationStrings {
 		noWorkspaceLeaf: string;
 		imageSaved: string;
 		imageSaveFailed: string;
+		voiceSaved: string;
+		voiceSaveFailed: string;
+		voiceUnsupported: string;
+		voiceMicDenied: string;
 		memoUpdateFailed: string;
+		wechatDesktopOnly: string;
+		wechatStarted: string;
+		wechatStopped: string;
+		wechatLoginSuccess: string;
+		wechatTokenStale: string;
+		wechatLoggedOut: string;
 	};
 	settings: {
 		displayName: string;
@@ -142,6 +157,29 @@ interface TranslationStrings {
 		dailyNotesPath: string;
 		dailyNotesPathValue: string;
 		dailyNotesPathEmpty: string;
+		wechat: {
+			heading: string;
+			status: string;
+			loggedIn: string;
+			notLoggedIn: string;
+			loginButton: string;
+			reloginButton: string;
+			logoutButton: string;
+			attachmentFolder: string;
+			attachmentFolderDesc: string;
+			articleFolder: string;
+			articleFolderDesc: string;
+			clipConfirmKeyword: string;
+			clipConfirmKeywordDesc: string;
+			autoClipPureLink: string;
+			autoClipPureLinkDesc: string;
+			localiseArticleImages: string;
+			localiseArticleImagesDesc: string;
+			saveVoiceAudio: string;
+			saveVoiceAudioDesc: string;
+			useMessageTime: string;
+			useMessageTimeDesc: string;
+		};
 	};
 	share: {
 		copyImage: string;
@@ -158,6 +196,9 @@ const en: TranslationStrings = {
 		openMemosView: "Open memos view",
 		openMemosSidebar: "Open memos sidebar",
 		refreshMemosView: "Refresh memos view",
+		wechatStart: "Start receiving WeChat messages",
+		wechatStop: "Stop receiving WeChat messages",
+		wechatLogin: "WeChat: scan QR code to log in",
 	},
 	view: {
 		displayName: "Memos",
@@ -205,6 +246,8 @@ const en: TranslationStrings = {
 		insertMention: "Insert mention",
 		insertTag: "Insert tag",
 		insertImage: "Insert image",
+		recordVoice: "Record voice",
+		stopRecording: "Stop recording",
 		attachmentPickerSearch: "Search attachments...",
 		attachmentPickerEmpty: "No matching attachments found.",
 		boldSelection: "Bold selection",
@@ -263,7 +306,17 @@ const en: TranslationStrings = {
 		noWorkspaceLeaf: "No workspace leaf available.",
 		imageSaved: "Image saved and embedded.",
 		imageSaveFailed: "Failed to save pasted image.",
+		voiceSaved: "Voice recording saved and embedded.",
+		voiceSaveFailed: "Failed to save voice recording.",
+		voiceUnsupported: "Voice recording is not supported in this environment.",
+		voiceMicDenied: "Microphone access was denied.",
 		memoUpdateFailed: "Failed to update the memo file.",
+		wechatDesktopOnly: "WeChat integration is only available on desktop.",
+		wechatStarted: "WeChat receiver started.",
+		wechatStopped: "WeChat receiver stopped.",
+		wechatLoginSuccess: "WeChat login successful.",
+		wechatTokenStale: "WeChat session expired on the server. Pausing for 1 hour; scan to log in again if needed.",
+		wechatLoggedOut: "WeChat account logged out.",
 	},
 	settings: {
 		displayName: "Display name",
@@ -297,6 +350,29 @@ const en: TranslationStrings = {
 		dailyNotesPath: "Daily notes path",
 		dailyNotesPathValue: "Memos are read from and written to: {}\nTo change it, configure the core \"Daily notes\" plugin in Settings → Daily notes.",
 		dailyNotesPathEmpty: "Not configured. Enable and set the \"New file location\" in Settings → Daily notes (core plugin).",
+		wechat: {
+			heading: "WeChat integration",
+			status: "Login status",
+			loggedIn: "Logged in",
+			notLoggedIn: "Not logged in",
+			loginButton: "Scan QR code to log in",
+			reloginButton: "Re-login (scan QR code)",
+			logoutButton: "Log out",
+			attachmentFolder: "Attachment folder",
+			attachmentFolderDesc: "Folder for images, voice and files received from WeChat. Empty = vault default attachment location.",
+			articleFolder: "Article clip folder",
+			articleFolderDesc: "Clipped articles (pure link or \"clip word + link\") are saved here.",
+			clipConfirmKeyword: "Clip trigger word",
+			clipConfirmKeywordDesc: "A message containing both this word and a web link clips the article, e.g. \"clip https://…\".",
+			autoClipPureLink: "Auto-clip pure links",
+			autoClipPureLinkDesc: "When on (default), sending just a web link clips the article directly. When off, only the trigger word plus a link clips, and plain links are saved as normal memos.",
+			localiseArticleImages: "Download article images",
+			localiseArticleImagesDesc: "Download article images to the vault when clipping, instead of keeping remote links.",
+			saveVoiceAudio: "Save voice audio",
+			saveVoiceAudioDesc: "When on (default), voice messages are saved as audio attachments along with the transcription. When off, only the transcription is kept; the audio is still saved if no transcription is available.",
+			useMessageTime: "Use message time",
+			useMessageTimeDesc: "Write memos with the time the message was sent (more accurate for offline catch-up).",
+		},
 	},
 	share: {
 		copyImage: "Copy image",
@@ -313,6 +389,9 @@ const zhCN: TranslationStrings = {
 		openMemosView: "打开 Memos 视图",
 		openMemosSidebar: "打开 Memos 侧边栏",
 		refreshMemosView: "刷新 Memos 视图",
+		wechatStart: "开始接收微信消息",
+		wechatStop: "停止接收微信消息",
+		wechatLogin: "微信：扫码登录",
 	},
 	view: {
 		displayName: "Memos",
@@ -360,6 +439,8 @@ const zhCN: TranslationStrings = {
 		insertMention: "插入提及",
 		insertTag: "插入标签",
 		insertImage: "插入图片",
+		recordVoice: "录音",
+		stopRecording: "停止录音",
 		attachmentPickerSearch: "搜索附件...",
 		attachmentPickerEmpty: "没有找到匹配的附件。",
 		boldSelection: "加粗",
@@ -418,7 +499,17 @@ const zhCN: TranslationStrings = {
 		noWorkspaceLeaf: "没有可用的工作区面板。",
 		imageSaved: "图片已保存并嵌入。",
 		imageSaveFailed: "保存粘贴的图片失败。",
+		voiceSaved: "语音已保存并嵌入。",
+		voiceSaveFailed: "保存语音录音失败。",
+		voiceUnsupported: "当前环境不支持录音。",
+		voiceMicDenied: "麦克风访问被拒绝。",
 		memoUpdateFailed: "更新备忘录文件失败。",
+		wechatDesktopOnly: "微信功能仅支持桌面端。",
+		wechatStarted: "已开始接收微信消息。",
+		wechatStopped: "已停止接收微信消息。",
+		wechatLoginSuccess: "微信登录成功。",
+		wechatTokenStale: "微信会话已在服务端过期，暂停接收 1 小时；如需立即恢复请重新扫码登录。",
+		wechatLoggedOut: "已退出微信登录。",
 	},
 	settings: {
 		displayName: "显示名称",
@@ -452,6 +543,29 @@ const zhCN: TranslationStrings = {
 		dailyNotesPath: "日记读写路径",
 		dailyNotesPathValue: "备忘录读取与写入位置：{}\n如需修改，请在「设置 → 每日笔记」核心插件中配置。",
 		dailyNotesPathEmpty: "未配置。请启用并在「设置 → 每日笔记」核心插件中设置「新建文件位置」。",
+		wechat: {
+			heading: "微信集成",
+			status: "登录状态",
+			loggedIn: "已登录",
+			notLoggedIn: "未登录",
+			loginButton: "扫码登录",
+			reloginButton: "重新扫码登录",
+			logoutButton: "退出登录",
+			attachmentFolder: "附件保存目录",
+			attachmentFolderDesc: "微信收到的图片、语音和文件保存到此目录。留空使用库默认附件位置。",
+			articleFolder: "文章剪藏目录",
+			articleFolderDesc: "剪藏的文章（纯链接或「剪藏词 + 链接」触发）保存到此目录。",
+			clipConfirmKeyword: "剪藏触发词",
+			clipConfirmKeywordDesc: "消息中同时包含该词和网页链接时剪藏全文，例如「剪藏 https://…」。",
+			autoClipPureLink: "纯链接自动剪藏",
+			autoClipPureLinkDesc: "开启（默认）后，只发送一条网页链接也直接剪藏全文；关闭则仅「剪藏词 + 链接」触发剪藏，纯链接记为普通 memo。",
+			localiseArticleImages: "下载文章图片",
+			localiseArticleImagesDesc: "剪藏文章时把图片下载到本地，而不是保留远程链接。",
+			saveVoiceAudio: "保存语音原声",
+			saveVoiceAudioDesc: "开启（默认）后，语音在转写成文字的同时把原声存为附件；关闭则仅保留转写文字（无转写时仍会保存原声）。",
+			useMessageTime: "使用消息时间",
+			useMessageTimeDesc: "按消息发送时间写入备忘录（补收离线消息时更准确）。",
+		},
 	},
 	share: {
 		copyImage: "复制图片",

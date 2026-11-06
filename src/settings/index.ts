@@ -3,6 +3,8 @@ import type MemosViewPlugin from "../main";
 import type { MemosPluginSettings } from "../types";
 import { t } from "../i18n";
 import { normalizeBoundPath } from "../utils/path";
+import { DEFAULT_WECHAT_SETTINGS } from "../wechat/types";
+import { isNodeTransportAvailable } from "../wechat/http";
 
 export const DEFAULT_SETTINGS: MemosPluginSettings = {
 	boundFilePath: "",
@@ -14,6 +16,7 @@ export const DEFAULT_SETTINGS: MemosPluginSettings = {
 	memoReadHeading: "",
 	shareTitle: "",
 	imageEmbedStyle: "wikilink",
+	wechat: { ...DEFAULT_WECHAT_SETTINGS },
 };
 
 export class MemosSettingTab extends PluginSettingTab {
@@ -164,6 +167,138 @@ export class MemosSettingTab extends PluginSettingTab {
 						}),
 				);
 		}
+
+		this.displayWechatSettings(containerEl);
+	}
+
+	private displayWechatSettings(containerEl: HTMLElement): void {
+		// 微信收信依赖 Node 传输，移动端隐藏整块设置
+		if (!isNodeTransportAvailable()) {
+			return;
+		}
+		const wechat = this.plugin.settings.wechat;
+
+		containerEl.createEl("h3", { text: t("settings.wechat.heading") });
+
+		const loggedIn = wechat.botToken.trim().length > 0;
+		const statusSetting = new Setting(containerEl)
+			.setName(t("settings.wechat.status"))
+			.setDesc(loggedIn ? t("settings.wechat.loggedIn") : t("settings.wechat.notLoggedIn"));
+
+		if (loggedIn) {
+			statusSetting
+				.addButton((btn) =>
+					btn
+						.setButtonText(t("settings.wechat.reloginButton"))
+						.onClick(() => {
+							this.plugin.wechat.openLogin();
+						}),
+				)
+				.addButton((btn) =>
+					btn
+						.setButtonText(t("settings.wechat.logoutButton"))
+						.setCta()
+						.onClick(async () => {
+							await this.plugin.wechat.logout();
+						}),
+				);
+		} else {
+			statusSetting.addButton((btn) =>
+				btn
+					.setButtonText(t("settings.wechat.loginButton"))
+					.setCta()
+					.onClick(() => {
+						this.plugin.wechat.openLogin();
+					}),
+			);
+		}
+
+		new Setting(containerEl)
+			.setName(t("settings.wechat.attachmentFolder"))
+			.setDesc(t("settings.wechat.attachmentFolderDesc"))
+			.addText((text) =>
+				text
+					.setPlaceholder("attachments/wechat")
+					.setValue(wechat.attachmentFolder)
+					.onChange(async (value) => {
+						wechat.attachmentFolder = value.trim();
+						await this.plugin.saveSettings();
+					}),
+			);
+
+		new Setting(containerEl)
+			.setName(t("settings.wechat.articleFolder"))
+			.setDesc(t("settings.wechat.articleFolderDesc"))
+			.addText((text) =>
+				text
+					.setPlaceholder("WeChat Articles")
+					.setValue(wechat.articleFolder)
+					.onChange(async (value) => {
+						wechat.articleFolder = value.trim();
+						await this.plugin.saveSettings();
+					}),
+			);
+
+		new Setting(containerEl)
+			.setName(t("settings.wechat.clipConfirmKeyword"))
+			.setDesc(t("settings.wechat.clipConfirmKeywordDesc"))
+			.addText((text) =>
+				text
+					.setPlaceholder("剪藏")
+					.setValue(wechat.clipConfirmKeyword)
+					.onChange(async (value) => {
+						wechat.clipConfirmKeyword = value.trim();
+						await this.plugin.saveSettings();
+					}),
+			);
+
+		new Setting(containerEl)
+			.setName(t("settings.wechat.autoClipPureLink"))
+			.setDesc(t("settings.wechat.autoClipPureLinkDesc"))
+			.addToggle((toggle) =>
+				toggle
+					.setValue(wechat.autoClipPureLink)
+					.onChange(async (value) => {
+						wechat.autoClipPureLink = value;
+						await this.plugin.saveSettings();
+					}),
+			);
+
+		new Setting(containerEl)
+			.setName(t("settings.wechat.localiseArticleImages"))
+			.setDesc(t("settings.wechat.localiseArticleImagesDesc"))
+			.addToggle((toggle) =>
+				toggle
+					.setValue(wechat.localiseArticleImages)
+					.onChange(async (value) => {
+						wechat.localiseArticleImages = value;
+						await this.plugin.saveSettings();
+					}),
+			);
+
+		new Setting(containerEl)
+			.setName(t("settings.wechat.saveVoiceAudio"))
+			.setDesc(t("settings.wechat.saveVoiceAudioDesc"))
+			.addToggle((toggle) =>
+				toggle
+					.setValue(wechat.saveVoiceAudio)
+					.onChange(async (value) => {
+						wechat.saveVoiceAudio = value;
+						await this.plugin.saveSettings();
+					}),
+			);
+
+		new Setting(containerEl)
+			.setName(t("settings.wechat.useMessageTime"))
+			.setDesc(t("settings.wechat.useMessageTimeDesc"))
+			.addToggle((toggle) =>
+				toggle
+					.setValue(wechat.useMessageTime)
+					.onChange(async (value) => {
+						wechat.useMessageTime = value;
+						await this.plugin.saveSettings();
+					}),
+			);
 	}
 
 	private buildDailyNotesPathDesc(): DocumentFragment {

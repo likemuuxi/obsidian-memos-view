@@ -1,6 +1,8 @@
 import esbuild from "esbuild";
 import process from "process";
 import { builtinModules } from 'node:module';
+import fs from "node:fs/promises";
+import { nodeTurndownPatch } from "./esbuild.turndown-patch.mjs";
 
 const banner =
 `/*
@@ -10,6 +12,30 @@ if you want to view the source, please visit the github repository of this plugi
 `;
 
 const prod = (process.argv[2] === "production");
+
+// silk-wasm 的 emscripten 加载器用 new URL("silk.wasm", import.meta.url) 定位
+// wasm 二进制；打进 CJS bundle 后 import.meta 是空对象，该表达式直接抛错。
+// 这里改写为全局变量 __SILK_WASM_URL__，由 src/wechat/silk.ts 在解码前
+// 用内联 base64 二进制生成的 blob URL 赋值。
+const silkWasmUrlPatch = {
+	name: "silk-wasm-url-patch",
+	setup(build) {
+		build.onLoad({ filter: /silk-wasm[\\/]lib[\\/]index\.mjs$/ }, async (args) => {
+			const contents = await fs.readFile(args.path, "utf8");
+			const needle = 'new URL("silk.wasm",import.meta.url).href';
+			if (!contents.includes(needle)) {
+				throw new Error(
+					`silk-wasm patch target not found in ${args.path}; ` +
+					"the package may have changed, update the patch in esbuild.config.mjs",
+				);
+			}
+			return {
+				contents: contents.replaceAll(needle, "globalThis.__SILK_WASM_URL__"),
+				loader: "js",
+			};
+		});
+	},
+};
 
 const context = await esbuild.context({
 	banner: {
@@ -34,6 +60,9 @@ const context = await esbuild.context({
 		...builtinModules],
 	format: "cjs",
 	target: "es2018",
+	// .wasm 文件内联为 base64 文本（供 silk.ts 生成 blob URL）
+	loader: { ".wasm": "base64" },
+	plugins: [silkWasmUrlPatch, nodeTurndownPatch],
 	logLevel: "info",
 	sourcemap: prod ? false : "inline",
 	treeShaking: true,

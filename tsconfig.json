@@ -6,6 +6,7 @@
 		"module": "ESNext",
 		"target": "ES2018",
 		"allowJs": true,
+		"allowSyntheticDefaultImports": true,
 		"strict": true,
 		"moduleResolution": "node",
 		"importHelpers": true,
@@ -14,6 +15,7 @@
 		"useUnknownInCatchVariables": true,
 		"lib": [
 			"DOM",
+			"DOM.Iterable",
 			"ES5",
 			"ES2018",
 			"ES2019",

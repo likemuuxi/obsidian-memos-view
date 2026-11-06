@@ -25,6 +25,7 @@ import { insertTextAtCaret } from "../../utils/text";
 import { MemosRandomWalkModal } from "./modals/randomWalkModal";
 import { AttachmentPickerModal } from "./modals/attachmentPickerModal";
 import { MemosFullscreenEditorModal } from "./modals/fullscreenEditorModal";
+import { VoiceRecorder } from "./voiceRecorder";
 
 const MEMOS_PAGE_SIZE = 50;
 
@@ -72,6 +73,7 @@ export class MemosView extends ItemView {
 	private pendingFrameIds = new Set<number>();
 	private isClosed = false;
 	private wikilinkControllers: WikilinkSuggestController[] = [];
+	private voiceRecorder = new VoiceRecorder();
 
 	constructor(leaf: WorkspaceLeaf, plugin: MemosViewPlugin) {
 		super(leaf);
@@ -166,6 +168,7 @@ export class MemosView extends ItemView {
 
 	async onClose(): Promise<void> {
 		this.isClosed = true;
+		this.voiceRecorder.cancel();
 		this.wikilinkControllers.forEach((c) => c.destroy());
 		this.wikilinkControllers = [];
 		this.pendingFrameIds.forEach((id) => {
@@ -1366,6 +1369,90 @@ export class MemosView extends ItemView {
 				this.insertIntoTextarea(textareaEl, markdownLink, onChange);
 			}).open();
 		});
+		this.createVoiceToolButton(parentEl, textareaEl, onChange, sourcePath);
+	}
+
+	private createVoiceToolButton(
+		parentEl: HTMLElement,
+		textareaEl: HTMLTextAreaElement,
+		onChange: (value: string) => void,
+		sourcePath?: string,
+	): void {
+		const buttonEl = parentEl.createEl("button", {
+			cls: "memos-tool-button",
+			attr: { "aria-label": t("view.recordVoice"), type: "button" },
+		});
+		setIcon(buttonEl, "mic");
+		let busy = false;
+
+		const resetButton = (): void => {
+			setIcon(buttonEl, "mic");
+			buttonEl.removeClass("is-recording");
+			buttonEl.setAttribute("aria-label", t("view.recordVoice"));
+		};
+
+		const tick = (): void => {
+			if (!this.voiceRecorder.isRecording) {
+				return;
+			}
+			const seconds = Math.floor(this.voiceRecorder.elapsedMs / 1000);
+			buttonEl.setAttribute(
+				"aria-label",
+				`${t("view.stopRecording")} ${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`,
+			);
+			this.scheduleTimeout(tick, 500);
+		};
+
+		buttonEl.addEventListener("click", async () => {
+			if (busy) {
+				return;
+			}
+			busy = true;
+			try {
+				if (this.voiceRecorder.isRecording) {
+					await this.saveVoiceRecording(textareaEl, onChange, sourcePath);
+					resetButton();
+				} else {
+					await this.voiceRecorder.start();
+					setIcon(buttonEl, "square");
+					buttonEl.addClass("is-recording");
+					buttonEl.setAttribute("aria-label", t("view.stopRecording"));
+					tick();
+				}
+			} catch (error) {
+				if (error instanceof DOMException && error.name === "NotAllowedError") {
+					new Notice(t("notices.voiceMicDenied"));
+				} else {
+					new Notice(t("notices.voiceUnsupported"));
+				}
+				resetButton();
+			} finally {
+				busy = false;
+			}
+		});
+	}
+
+	private async saveVoiceRecording(
+		textareaEl: HTMLTextAreaElement,
+		onChange: (value: string) => void,
+		sourcePath?: string,
+	): Promise<void> {
+		const recording = await this.voiceRecorder.stop();
+		if (!recording) {
+			return;
+		}
+		try {
+			const filename = `Voice recording ${createLocalTimestampForFileName(new Date())}.${recording.ext}`;
+			const resolvedSourcePath = sourcePath ?? this.plugin.getTodayDailyNotePath();
+			const attachmentPath = await this.app.fileManager.getAvailablePathForAttachment(filename, resolvedSourcePath);
+			const file = await this.app.vault.createBinary(attachmentPath, recording.buffer);
+			const markdownLink = this.createAttachmentEmbedMarkdown(file, resolvedSourcePath);
+			this.insertIntoTextarea(textareaEl, markdownLink, onChange);
+			new Notice(t("notices.voiceSaved"));
+		} catch (error) {
+			console.error("Failed to save voice recording", error);
+			new Notice(t("notices.voiceSaveFailed"));
+		}
 	}
 
 	private insertIntoTextarea(

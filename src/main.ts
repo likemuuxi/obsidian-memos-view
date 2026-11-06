@@ -20,10 +20,15 @@ import type { MemoStatusKey } from "./memos/core/parser";
 import { t } from "./i18n";
 import { normalizeBoundPath } from "./utils/path";
 import { readDailyNoteTemplate, renderDailyNoteTemplate } from "./dailyNotes/template";
+import { WechatIntegration } from "./wechat/wechatPlugin";
+import { DEFAULT_WECHAT_SETTINGS } from "./wechat/types";
+import { isNodeTransportAvailable } from "./wechat/http";
 
 export default class MemosViewPlugin extends Plugin {
 	settings: MemosPluginSettings = DEFAULT_SETTINGS;
 	dailyNotesConfig: DailyNotesConfig | null = null;
+	wechat = new WechatIntegration(this);
+	settingTab: MemosSettingTab | null = null;
 	private pendingBoundFileTimer: number | null = null;
 	private suppressedVaultRefreshUntil = new Map<string, number>();
 
@@ -64,7 +69,44 @@ export default class MemosViewPlugin extends Plugin {
 			},
 		});
 
-		this.addSettingTab(new MemosSettingTab(this.app, this));
+		this.addCommand({
+			id: "wechat-start",
+			name: t("commands.wechatStart"),
+			callback: () => {
+				void this.wechat.start();
+			},
+		});
+
+		this.addCommand({
+			id: "wechat-stop",
+			name: t("commands.wechatStop"),
+			callback: async () => {
+				if (!isNodeTransportAvailable()) {
+					new Notice(t("notices.wechatDesktopOnly"));
+					return;
+				}
+				await this.wechat.stop({ notify: true });
+				new Notice(t("notices.wechatStopped"));
+			},
+		});
+
+		this.addCommand({
+			id: "wechat-login",
+			name: t("commands.wechatLogin"),
+			callback: () => {
+				this.wechat.openLogin();
+			},
+		});
+
+		if (
+			isNodeTransportAvailable() &&
+			this.settings.wechat.botToken.trim()
+		) {
+			void this.wechat.start();
+		}
+
+		this.settingTab = new MemosSettingTab(this.app, this);
+		this.addSettingTab(this.settingTab);
 
 		this.registerEvent(
 			this.app.workspace.on("file-open", (file) => {
@@ -91,6 +133,8 @@ export default class MemosViewPlugin extends Plugin {
 			this.pendingBoundFileTimer = null;
 		}
 
+		await this.wechat?.stop();
+
 		const leaves = [
 			...this.app.workspace.getLeavesOfType(VIEW_TYPE_MEMOS),
 			...this.app.workspace.getLeavesOfType(VIEW_TYPE_MEMOS_SIDEBAR),
@@ -105,7 +149,7 @@ export default class MemosViewPlugin extends Plugin {
 			boundFilePaths?: string[];
 			maxMemos?: number;
 		};
-		const { boundFilePaths, maxMemos: _legacyMaxMemos, ...restData } = rawData;
+		const { boundFilePaths, maxMemos: _legacyMaxMemos, wechat: rawWechat, ...restData } = rawData;
 		const migratedBoundFilePath =
 			restData.boundFilePath ??
 			(boundFilePaths && boundFilePaths.length ? boundFilePaths[0] : "");
@@ -115,6 +159,7 @@ export default class MemosViewPlugin extends Plugin {
 		this.settings = {
 			...data,
 			boundFilePath: normalizeBoundPath(data.boundFilePath),
+			wechat: { ...DEFAULT_WECHAT_SETTINGS, ...(rawWechat ?? {}) },
 		};
 	}
 
@@ -155,6 +200,11 @@ export default class MemosViewPlugin extends Plugin {
 			active: true,
 		});
 		this.app.workspace.revealLeaf(targetLeaf);
+	}
+
+	/** 微信登录状态等外部变化后刷新设置界面；未打开时重建无副作用。 */
+	refreshSettingTab(): void {
+		this.settingTab?.display();
 	}
 
 	async refreshAllMemosViews(): Promise<void> {
@@ -278,20 +328,22 @@ export default class MemosViewPlugin extends Plugin {
 		return `${before}\n${payload}\n${after}`;
 	}
 
-	async appendMemoToToday(content: string, options: { refresh?: boolean } = {}): Promise<void> {
+	async appendMemoToToday(
+		content: string,
+		options: { refresh?: boolean; timestamp?: Date } = {},
+	): Promise<{ filePath: string; payload: string } | null> {
 		const normalized = content.trim();
 		if (!normalized) {
-			return;
+			return null;
 		}
 
 		try {
-			const now = new Date();
+			const now = options.timestamp ?? new Date();
 			const timestampLabel = this.formatTimeByPattern(now, this.settings.timestampFormat);
 			const payload = serializeMemoBlock(normalized, timestampLabel);
 
 			if (this.settings.memoStoreMode === "yearly") {
-				await this.appendMemoToYearlyFile(payload, options);
-				return;
+				return await this.appendMemoToYearlyFile(payload, options);
 			}
 
 			await this.loadDailyNotesConfig();
@@ -337,15 +389,20 @@ export default class MemosViewPlugin extends Plugin {
 			if (options.refresh !== false) {
 				await this.refreshAllMemosViews();
 			}
+			return { filePath, payload };
 		} catch (error) {
 			console.error("Failed to append memo", error);
 			new Notice(t("notices.memoUpdateFailed"));
+			return null;
 		}
 	}
 
-	private async appendMemoToYearlyFile(payload: string, options: { refresh?: boolean }): Promise<void> {
+	private async appendMemoToYearlyFile(
+		payload: string,
+		options: { refresh?: boolean; timestamp?: Date },
+	): Promise<{ filePath: string; payload: string } | null> {
 		try {
-			const now = new Date();
+			const now = options.timestamp ?? new Date();
 			const filePath = this.getYearlyNotePath(now);
 			const year = String(now.getFullYear());
 			const dayHeading = this.getYearlyDayHeading(now);
@@ -401,9 +458,11 @@ export default class MemosViewPlugin extends Plugin {
 			if (options.refresh !== false) {
 				await this.refreshAllMemosViews();
 			}
+			return { filePath, payload };
 		} catch (error) {
 			console.error("Failed to append memo to yearly file", error);
 			new Notice(t("notices.memoUpdateFailed"));
+			return null;
 		}
 	}
 

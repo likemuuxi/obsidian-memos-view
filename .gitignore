@@ -18,5 +18,8 @@ main.js
 # obsidian
 data.json
 
+# wechat runtime state (cursor)
+wechat-state.json
+
 # Exclude macOS Finder (System Explorer) View States
 .DS_Store

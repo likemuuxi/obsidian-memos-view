@@ -1085,6 +1085,21 @@ body.is-mobile .memos-inline-editor-input {
 	color: var(--text-normal);
 }
 
+.memos-tool-button.is-recording {
+	color: var(--text-error);
+	animation: memos-recording-pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes memos-recording-pulse {
+	0%,
+	100% {
+		opacity: 1;
+	}
+	50% {
+		opacity: 0.45;
+	}
+}
+
 .memos-tool-divider {
 	width: 1px;
 	height: 14px;
