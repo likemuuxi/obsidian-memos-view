@@ -3,7 +3,6 @@ interface TranslationStrings {
 		openMemosView: string;
 		openMemosSidebar: string;
 		refreshMemosView: string;
-		randomWalkMemo: string;
 	};
 	view: {
 		displayName: string;
@@ -107,7 +106,6 @@ interface TranslationStrings {
 		couldNotParseBlock: string;
 		couldNotLocateParagraph: string;
 		noWorkspaceLeaf: string;
-		couldNotOpenView: string;
 		imageSaved: string;
 		imageSaveFailed: string;
 		memoUpdateFailed: string;
@@ -160,7 +158,6 @@ const en: TranslationStrings = {
 		openMemosView: "Open memos view",
 		openMemosSidebar: "Open memos sidebar",
 		refreshMemosView: "Refresh memos view",
-		randomWalkMemo: "Random walk memo",
 	},
 	view: {
 		displayName: "Memos",
@@ -264,7 +261,6 @@ const en: TranslationStrings = {
 		couldNotParseBlock: "Could not parse the original memo block.",
 		couldNotLocateParagraph: "Could not locate the selected paragraph.",
 		noWorkspaceLeaf: "No workspace leaf available.",
-		couldNotOpenView: "Could not open memos view.",
 		imageSaved: "Image saved and embedded.",
 		imageSaveFailed: "Failed to save pasted image.",
 		memoUpdateFailed: "Failed to update the memo file.",
@@ -317,7 +313,6 @@ const zhCN: TranslationStrings = {
 		openMemosView: "打开 Memos 视图",
 		openMemosSidebar: "打开 Memos 侧边栏",
 		refreshMemosView: "刷新 Memos 视图",
-		randomWalkMemo: "随机漫步",
 	},
 	view: {
 		displayName: "Memos",
@@ -421,7 +416,6 @@ const zhCN: TranslationStrings = {
 		couldNotParseBlock: "无法解析原始备忘录块。",
 		couldNotLocateParagraph: "无法定位所选段落。",
 		noWorkspaceLeaf: "没有可用的工作区面板。",
-		couldNotOpenView: "无法打开 Memos 视图。",
 		imageSaved: "图片已保存并嵌入。",
 		imageSaveFailed: "保存粘贴的图片失败。",
 		memoUpdateFailed: "更新备忘录文件失败。",

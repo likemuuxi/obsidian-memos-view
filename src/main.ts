@@ -49,7 +49,7 @@ export default class MemosViewPlugin extends Plugin {
 		});
 
 		this.addCommand({
-			id: "open-memos-view",
+			id: "open-view",
 			name: t("commands.openMemosView"),
 			callback: () => {
 				void this.activateMemosView();
@@ -57,18 +57,10 @@ export default class MemosViewPlugin extends Plugin {
 		});
 
 		this.addCommand({
-			id: "open-memos-sidebar",
+			id: "open-sidebar",
 			name: t("commands.openMemosSidebar"),
 			callback: () => {
 				void this.activateMemosSidebarView();
-			},
-		});
-
-		this.addCommand({
-			id: "random-walk-memo",
-			name: t("commands.randomWalkMemo"),
-			callback: () => {
-				void this.startRandomWalk();
 			},
 		});
 
@@ -181,16 +173,6 @@ export default class MemosViewPlugin extends Plugin {
 
 	suppressVaultRefresh(path: string, durationMs = 400): void {
 		this.suppressedVaultRefreshUntil.set(path, Date.now() + durationMs);
-	}
-
-	async startRandomWalk(): Promise<void> {
-		const memosView = await this.getOrCreateMemosView();
-		if (!memosView) {
-			new Notice(t("notices.couldNotOpenView"));
-			return;
-		}
-
-		await memosView.startRandomWalk();
 	}
 
 	async openSourceFile(path: string): Promise<void> {
@@ -550,21 +532,6 @@ export default class MemosViewPlugin extends Plugin {
 			this.pendingBoundFileTimer = null;
 			void this.handleFileOpen(file);
 		}, 40);
-	}
-
-	private async getOrCreateMemosView(): Promise<MemosView | null> {
-		const existingView = this.app.workspace
-			.getLeavesOfType(VIEW_TYPE_MEMOS)
-			.find((leaf) => leaf.view instanceof MemosView)?.view;
-		if (existingView instanceof MemosView) {
-			return existingView;
-		}
-
-		await this.activateMemosView();
-		const nextView = this.app.workspace
-			.getLeavesOfType(VIEW_TYPE_MEMOS)
-			.find((leaf) => leaf.view instanceof MemosView)?.view;
-		return nextView instanceof MemosView ? nextView : null;
 	}
 
 	private handleVaultChange(file: unknown): void {

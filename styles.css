@@ -1163,10 +1163,10 @@ body.is-mobile .memos-inline-editor-input {
 	width: 36px;
 	height: 36px;
 	padding: 0;
-	border: 0;
+	border: 1px solid var(--background-modifier-border);
 	border-radius: 50%;
-	background: var(--background-secondary) !important;
-	box-shadow: none !important;
+	background: var(--background-elevated) !important;
+	box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15) !important;
 	color: var(--text-muted) !important;
 	display: inline-flex;
 	align-items: center;
@@ -1185,7 +1185,8 @@ body.is-mobile .memos-inline-editor-input {
 }
 
 .memos-back-to-top:hover {
-	background: var(--background-modifier-hover) !important;
+	background: color-mix(in srgb, var(--background-elevated) 85%, var(--background-modifier-hover)) !important;
+	border-color: var(--background-modifier-hover);
 	color: var(--text-normal) !important;
 }
 
