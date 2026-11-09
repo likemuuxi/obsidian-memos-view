@@ -81,8 +81,7 @@ export class MemosSettingTab extends PluginSettingTab {
 			.setDesc(t("settings.timestampFormatDesc"))
 			.addText((text) =>
 				text
-				// eslint-disable-next-line obsidianmd/ui/sentence-case -- 时间格式示例，非 UI 文案
-				.setPlaceholder("HH:mm")
+					.setPlaceholder("Time format")
 					.setValue(this.plugin.settings.timestampFormat)
 					.onChange(async (value) => {
 						this.plugin.settings.timestampFormat = normalizeTimestampFormat(value);
@@ -126,9 +125,8 @@ export class MemosSettingTab extends PluginSettingTab {
 				.setDesc(t("settings.memoStoreHeadingDesc"))
 				.addText((text) =>
 					text
-					// eslint-disable-next-line obsidianmd/ui/sentence-case -- 标题格式示例，非 UI 文案
-					.setPlaceholder("## Memos")
-					.setValue(this.plugin.settings.memoStoreHeading)
+						.setPlaceholder("## memos")
+						.setValue(this.plugin.settings.memoStoreHeading)
 						.onChange(async (value) => {
 							this.plugin.settings.memoStoreHeading = value.trim();
 							await this.plugin.saveSettings();
@@ -160,9 +158,8 @@ export class MemosSettingTab extends PluginSettingTab {
 				.setDesc(t("settings.memoReadHeadingDesc"))
 				.addText((text) =>
 					text
-					// eslint-disable-next-line obsidianmd/ui/sentence-case -- 标题格式示例，非 UI 文案
-					.setPlaceholder("## Memos")
-					.setValue(this.plugin.settings.memoReadHeading)
+						.setPlaceholder("## memos")
+						.setValue(this.plugin.settings.memoReadHeading)
 						.onChange(async (value) => {
 							this.plugin.settings.memoReadHeading = value.trim();
 							await this.plugin.saveSettings();
@@ -221,8 +218,7 @@ export class MemosSettingTab extends PluginSettingTab {
 			.setDesc(t("settings.wechat.attachmentFolderDesc"))
 			.addText((text) =>
 				text
-				// eslint-disable-next-line obsidianmd/ui/sentence-case -- 文件夹路径示例，非 UI 文案
-				.setPlaceholder("attachments/wechat")
+					.setPlaceholder("Attachments/wechat")
 					.setValue(wechat.attachmentFolder)
 					.onChange(async (value) => {
 						wechat.attachmentFolder = value.trim();
@@ -235,8 +231,7 @@ export class MemosSettingTab extends PluginSettingTab {
 			.setDesc(t("settings.wechat.articleFolderDesc"))
 			.addText((text) =>
 				text
-				// eslint-disable-next-line obsidianmd/ui/sentence-case -- 文件夹名称示例，非 UI 文案
-				.setPlaceholder("WeChat Articles")
+					.setPlaceholder("Wechat articles")
 					.setValue(wechat.articleFolder)
 					.onChange(async (value) => {
 						wechat.articleFolder = value.trim();
