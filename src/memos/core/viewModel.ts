@@ -179,15 +179,25 @@ const ATTACHMENT_VIDEO_EXT = /\.(mp4|webm|mov|mkv|avi|m4v)(?=[?#]|$)/i;
  * 扫描 memo 内容中的附件嵌入(`![[...]]` / `![...](...)`),
  * 返回其中包含的附件类型集合(image / audio / video / file)。
  */
-function collectAttachmentTypes(content: string): Set<string> {
-	const types = new Set<string>();
+/**
+ * 收集 memo 内容中的附件嵌入目标(`![[...]]` / `![...](...)`),返回去重后的目标字符串列表。
+ */
+export function collectAttachmentEmbedTargets(content: string): string[] {
+	const targets = new Set<string>();
 	const embedRegex = /!\[\[([^\]|]+)(?:\|[^\]]*)?\]\]|!\[[^\]]*\]\(([^)\s]+)(?:\s[^)]*)?\)/g;
 	let match: RegExpExecArray | null;
 	while ((match = embedRegex.exec(content)) !== null) {
 		const target = (match[1] ?? match[2] ?? "").trim();
-		if (!target) {
-			continue;
+		if (target) {
+			targets.add(target);
 		}
+	}
+	return [...targets];
+}
+
+function collectAttachmentTypes(content: string): Set<string> {
+	const types = new Set<string>();
+	for (const target of collectAttachmentEmbedTargets(content)) {
 		if (ATTACHMENT_IMAGE_EXT.test(target)) {
 			types.add("image");
 		} else if (ATTACHMENT_AUDIO_EXT.test(target)) {

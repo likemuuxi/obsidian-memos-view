@@ -178,7 +178,7 @@ export class MemosSettingTab extends PluginSettingTab {
 		}
 		const wechat = this.plugin.settings.wechat;
 
-		containerEl.createEl("h3", { text: t("settings.wechat.heading") });
+		new Setting(containerEl).setName(t("settings.wechat.heading")).setHeading();
 
 		const loggedIn = wechat.botToken.trim().length > 0;
 		const statusSetting = new Setting(containerEl)

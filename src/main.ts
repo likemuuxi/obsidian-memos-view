@@ -514,7 +514,7 @@ export default class MemosViewPlugin extends Plugin {
 		await this.updateMemoStatus(memo, "pinned", !memo.pinnedAt, options);
 	}
 
-	async permanentlyDeleteMarkedMemos(memos: MemoEntry[]): Promise<void> {
+	async permanentlyDeleteMarkedMemos(memos: MemoEntry[], attachments: TFile[] = []): Promise<void> {
 		const memoGroups = new Map<string, MemoEntry[]>();
 		memos.forEach((memo) => {
 			const currentGroup = memoGroups.get(memo.sourcePath) ?? [];
@@ -547,6 +547,15 @@ export default class MemosViewPlugin extends Plugin {
 				const nextFileContent = composeFileContent(ctx.frontmatter, normalizedBody);
 				this.suppressVaultRefresh(ctx.file.path);
 				await this.app.vault.modify(ctx.file, nextFileContent);
+			}
+
+			// 将用户勾选的附件移入回收站(优先系统回收站,不可用时回退 .trash)
+			for (const attachment of attachments) {
+				try {
+					await this.app.vault.trash(attachment, true);
+				} catch (error) {
+					console.error("Failed to trash attachment", attachment.path, error);
+				}
 			}
 
 			await this.refreshAllMemosViews();

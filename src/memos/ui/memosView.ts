@@ -24,6 +24,7 @@ import { WikilinkSuggestController } from "../../editor/wikilinkSuggest";
 import { insertTextAtCaret } from "../../utils/text";
 import { MemosRandomWalkModal } from "./modals/randomWalkModal";
 import { AttachmentPickerModal } from "./modals/attachmentPickerModal";
+import { PermanentDeleteModal, collectDeletableAttachments } from "./modals/permanentDeleteModal";
 import { MemosFullscreenEditorModal } from "./modals/fullscreenEditorModal";
 import { VoiceRecorder } from "./voiceRecorder";
 
@@ -1929,23 +1930,39 @@ export class MemosView extends ItemView {
 			return;
 		}
 
-		const confirmed = window.confirm(`Permanently delete ${deletedMemos.length} deleted memos?`);
+		const remainingMemos = this.memos.filter((memo) => !memo.deletedAt);
+		const attachments = collectDeletableAttachments(this.app, deletedMemos, remainingMemos);
+		if (attachments.length) {
+			new PermanentDeleteModal(this.app, deletedMemos, remainingMemos, (selectedAttachments) =>
+				this.plugin
+					.permanentlyDeleteMarkedMemos(deletedMemos, selectedAttachments)
+					.then(() => this.finalizePermanentDeletion(deletedMemos.length, false)),
+			).open();
+			return;
+		}
+
+		const confirmed = window.confirm(t("notices.permanentlyDeleteAllConfirm", deletedMemos.length));
 		if (!confirmed) {
 			return;
 		}
 
 		await this.plugin.permanentlyDeleteMarkedMemos(deletedMemos);
-		this.inlineEditingMemoId = null;
-		this.inlineEditorValue = "";
-		if (this.statusFilter === "deleted") {
-			this.statusFilter = "all";
-		}
-		new Notice(t("notices.permanentlyDeleted", deletedMemos.length));
-		await this.render();
+		await this.finalizePermanentDeletion(deletedMemos.length, false);
 	}
 
 	private async permanentlyDeleteMemo(memo: MemoEntry): Promise<void> {
 		if (!memo.deletedAt) {
+			return;
+		}
+
+		const remainingMemos = this.memos.filter((item) => item.id !== memo.id);
+		const attachments = collectDeletableAttachments(this.app, [memo], remainingMemos);
+		if (attachments.length) {
+			new PermanentDeleteModal(this.app, [memo], remainingMemos, (selectedAttachments) =>
+				this.plugin
+					.permanentlyDeleteMarkedMemos([memo], selectedAttachments)
+					.then(() => this.finalizePermanentDeletion(1, true)),
+			).open();
 			return;
 		}
 
@@ -1955,9 +1972,16 @@ export class MemosView extends ItemView {
 		}
 
 		await this.plugin.permanentlyDeleteMarkedMemos([memo]);
+		await this.finalizePermanentDeletion(1, true);
+	}
+
+	private async finalizePermanentDeletion(count: number, single: boolean): Promise<void> {
 		this.inlineEditingMemoId = null;
 		this.inlineEditorValue = "";
-		new Notice(t("notices.memoPermanentlyDeleted"));
+		if (!single && this.statusFilter === "deleted") {
+			this.statusFilter = "all";
+		}
+		new Notice(single ? t("notices.memoPermanentlyDeleted") : t("notices.permanentlyDeleted", count));
 		await this.render();
 	}
 

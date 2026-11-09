@@ -9,7 +9,7 @@ let cryptoModule: NodeCryptoModule | null = null;
 
 function getCrypto(): NodeCryptoModule {
 	if (!cryptoModule) {
-		// eslint-disable-next-line @typescript-eslint/no-require-imports
+		// eslint-disable-next-line @typescript-eslint/no-require-imports -- 同步 require 才能在首次调用时懒加载 node:crypto，避免移动端 bundle 初始化崩溃
 		cryptoModule = require("crypto") as NodeCryptoModule;
 	}
 	return cryptoModule;

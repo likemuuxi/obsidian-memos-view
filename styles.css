@@ -2360,3 +2360,141 @@ body.is-mobile .memos-inline-editor-input {
 	outline: 2px solid var(--interactive-accent);
 	outline-offset: 2px;
 }
+
+/* 永久删除:附件清理选择弹窗 */
+.memos-permanent-delete-modal .modal {
+	width: min(96vw, 560px);
+}
+
+.memos-permanent-delete-desc {
+	margin-bottom: 12px;
+	color: var(--text-muted);
+	font-size: 13px;
+}
+
+.memos-permanent-delete-section-head {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	margin-bottom: 8px;
+}
+
+.memos-permanent-delete-section-title {
+	font-weight: 600;
+	font-size: 13px;
+}
+
+.memos-permanent-delete-actions {
+	display: flex;
+	gap: 8px;
+}
+
+.memos-permanent-delete-actions button {
+	padding: 2px 8px;
+	border: none;
+	background: transparent;
+	color: var(--text-muted);
+	font-size: 12px;
+	cursor: pointer;
+}
+
+.memos-permanent-delete-actions button:hover {
+	color: var(--text-normal);
+}
+
+.memos-permanent-delete-list {
+	max-height: 40vh;
+	overflow-y: auto;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 8px;
+}
+
+.memos-permanent-delete-empty {
+	padding: 24px 0;
+	text-align: center;
+	color: var(--text-faint);
+	font-size: 13px;
+}
+
+.memos-permanent-delete-item {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	padding: 8px 12px;
+	cursor: pointer;
+}
+
+.memos-permanent-delete-item + .memos-permanent-delete-item {
+	border-top: 1px solid var(--background-modifier-border);
+}
+
+.memos-permanent-delete-item:hover {
+	background: var(--background-secondary);
+}
+
+.memos-permanent-delete-icon {
+	display: flex;
+	flex: 0 0 auto;
+	color: var(--text-muted);
+}
+
+.memos-permanent-delete-icon svg {
+	width: 18px;
+	height: 18px;
+}
+
+.memos-permanent-delete-name {
+	flex: 1;
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	font-size: 13px;
+}
+
+.memos-permanent-delete-meta {
+	display: flex;
+	flex: 0 0 auto;
+	flex-direction: column;
+	align-items: flex-end;
+	gap: 2px;
+	color: var(--text-faint);
+	font-size: 12px;
+}
+
+.memos-permanent-delete-badge {
+	padding: 1px 6px;
+	border-radius: 999px;
+	font-size: 11px;
+}
+
+.memos-permanent-delete-badge.is-referenced {
+	background: var(--background-modifier-hover);
+	color: var(--text-muted);
+}
+
+.memos-permanent-delete-badge.is-orphan {
+	background: rgba(var(--color-green-rgb, 68, 207, 110), 0.15);
+	color: var(--color-green, #44cf6e);
+}
+
+.memos-permanent-delete-hint {
+	margin-top: 8px;
+	color: var(--text-faint);
+	font-size: 12px;
+}
+
+/* 微信扫码登录弹窗 */
+.memos-qr-login-status {
+	text-align: center;
+	margin-bottom: 0.75em;
+}
+
+.memos-qr-login-holder {
+	display: flex;
+	justify-content: center;
+}
+
+.memos-qr-login-hint {
+	text-align: center;
+}

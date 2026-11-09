@@ -57,20 +57,15 @@ export class WechatQrLoginModal extends Modal {
 		this.titleEl.setText(tr("微信扫码登录", "WeChat QR login"));
 		this.contentEl.empty();
 
-		this.statusEl = this.contentEl.createEl("p");
-		this.statusEl.style.textAlign = "center";
-		this.statusEl.style.marginBottom = "0.75em";
+		this.statusEl = this.contentEl.createEl("p", { cls: "memos-qr-login-status" });
 
-		const holder = this.contentEl.createDiv();
-		holder.style.display = "flex";
-		holder.style.justifyContent = "center";
+		const holder = this.contentEl.createDiv({ cls: "memos-qr-login-holder" });
 		this.canvas = holder.createEl("canvas");
 
 		this.verifyContainer = this.contentEl.createDiv();
 		this.verifyContainer.hide();
 
-		const hint = this.contentEl.createEl("p");
-		hint.style.textAlign = "center";
+		const hint = this.contentEl.createEl("p", { cls: "memos-qr-login-hint" });
 		hint.addClass("mod-muted");
 		hint.setText(
 			tr(

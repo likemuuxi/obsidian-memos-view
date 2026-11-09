@@ -341,17 +341,18 @@ export function setMemoStatusValue(
 	key: MemoStatusKey,
 	value: string | null,
 ): MemoStatusState {
+	// 归档与删除状态互斥:开启其中一个时清除另一个
 	if (key === "deleted") {
 		return {
 			deletedAt: value,
-			archivedAt: status.archivedAt,
+			archivedAt: value ? null : status.archivedAt,
 			pinnedAt: status.pinnedAt,
 		};
 	}
 
 	if (key === "archived") {
 		return {
-			deletedAt: status.deletedAt,
+			deletedAt: value ? null : status.deletedAt,
 			archivedAt: value,
 			pinnedAt: status.pinnedAt,
 		};
@@ -406,6 +407,11 @@ function stripMemoStatusMarkers(content: string): { content: string } & MemoStat
 		return "";
 	});
 
+	// 归档与删除状态互斥:旧数据两者同时存在时保留删除状态
+	if (status.deletedAt && status.archivedAt) {
+		status.archivedAt = null;
+	}
+
 	return {
 		content: contentWithoutMarkers
 			.replace(/[ \t]+\n/g, "\n")
@@ -422,11 +428,11 @@ function buildStatusMarkers(status: Partial<MemoStatusState>): string[] {
 	if (status.pinnedAt) {
 		markers.push(`[pinned::${status.pinnedAt}]`);
 	}
-	if (status.archivedAt) {
-		markers.push(`[archived::${status.archivedAt}]`);
-	}
+	// 归档与删除状态互斥:两者同时存在时只保留删除标记
 	if (status.deletedAt) {
 		markers.push(`[deleted::${status.deletedAt}]`);
+	} else if (status.archivedAt) {
+		markers.push(`[archived::${status.archivedAt}]`);
 	}
 	return markers;
 }

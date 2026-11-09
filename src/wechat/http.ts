@@ -14,7 +14,7 @@ let httpsModule: NodeHttpsModule | null = null;
 
 function getHttps(): NodeHttpsModule {
 	if (!httpsModule) {
-		// eslint-disable-next-line @typescript-eslint/no-require-imports
+		// eslint-disable-next-line @typescript-eslint/no-require-imports -- 同步 require 才能在首次调用时懒加载 node:https，避免移动端 bundle 初始化崩溃
 		httpsModule = require("https") as NodeHttpsModule;
 	}
 	return httpsModule;

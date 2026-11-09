@@ -108,8 +108,18 @@ interface TranslationStrings {
 		permanentlyDeleted: string;
 		permanentlyDelete: string;
 		permanentlyDeleteConfirm: string;
+		permanentlyDeleteAllConfirm: string;
+		permanentlyDeleteMemoCount: string;
 		memoPermanentlyDeleted: string;
 		deleteAll: string;
+		attachmentCleanupTitle: string;
+		attachmentCleanupHint: string;
+		attachmentCleanupEmpty: string;
+		attachmentNoReferences: string;
+		attachmentStillReferenced: string;
+		attachmentSelectedCount: string;
+		attachmentSelectAll: string;
+		attachmentSelectNone: string;
 		sourceFileNoLongerExists: string;
 		couldNotLocateBlock: string;
 		couldNotParseBlock: string;
@@ -305,8 +315,18 @@ const en: TranslationStrings = {
 		permanentlyDeleted: "Permanently deleted {} memos.",
 		permanentlyDelete: "Permanently delete",
 		permanentlyDeleteConfirm: "Permanently delete this memo? This cannot be undone.",
+		permanentlyDeleteAllConfirm: "Permanently delete {} deleted memos? This cannot be undone.",
+		permanentlyDeleteMemoCount: "About to permanently delete {} memo(s). This cannot be undone.",
 		memoPermanentlyDeleted: "Memo permanently deleted.",
 		deleteAll: "Delete all",
+		attachmentCleanupTitle: "Attachments referenced by these memos",
+		attachmentCleanupHint: "Selected attachments will be moved to the trash together with the memos.",
+		attachmentCleanupEmpty: "No attachments found in these memos.",
+		attachmentNoReferences: "No other references",
+		attachmentStillReferenced: "Referenced by other memos",
+		attachmentSelectedCount: "{} selected",
+		attachmentSelectAll: "Select all",
+		attachmentSelectNone: "Select none",
 		sourceFileNoLongerExists: "Source file no longer exists.",
 		couldNotLocateBlock: "Could not locate the original memo block.",
 		couldNotParseBlock: "Could not parse the original memo block.",
@@ -502,8 +522,18 @@ const zhCN: TranslationStrings = {
 		permanentlyDeleted: "已永久删除 {} 条备忘录。",
 		permanentlyDelete: "永久删除",
 		permanentlyDeleteConfirm: "永久删除此备忘录？此操作不可撤销。",
+		permanentlyDeleteAllConfirm: "永久删除 {} 条备忘录？此操作不可撤销。",
+		permanentlyDeleteMemoCount: "将永久删除 {} 条备忘录，此操作不可撤销。",
 		memoPermanentlyDeleted: "备忘录已永久删除。",
 		deleteAll: "全部删除",
+		attachmentCleanupTitle: "备忘录引用的附件",
+		attachmentCleanupHint: "选中的附件将随备忘录一并移入回收站。",
+		attachmentCleanupEmpty: "这些备忘录没有引用附件。",
+		attachmentNoReferences: "无其他引用",
+		attachmentStillReferenced: "仍被其他备忘录引用",
+		attachmentSelectedCount: "已选 {} 个",
+		attachmentSelectAll: "全选",
+		attachmentSelectNone: "全不选",
 		sourceFileNoLongerExists: "源文件已不存在。",
 		couldNotLocateBlock: "无法定位原始备忘录块。",
 		couldNotParseBlock: "无法解析原始备忘录块。",
