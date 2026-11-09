@@ -11,5 +11,6 @@ export function insertTextAtCaret(
 	textareaEl: HTMLTextAreaElement,
 	text: string,
 ): void {
+	// eslint-disable-next-line @typescript-eslint/no-deprecated -- 保留理由见上方注释：触发 Obsidian 内部同步的最可靠方案
 	document.execCommand("insertText", false, text);
 }

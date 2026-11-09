@@ -9,15 +9,7 @@ import type { MemoEntry, MemosViewState } from "../../types";
 import { loadMemosFromDailyNotes } from "../core/memoStore";
 import { buildViewModel } from "../core/viewModel";
 import type { HeatmapWeek, HeatmapMonthLabel } from "../core/viewModel";
-import {
-	applyWikilinkSuggestion,
-	createBlockId,
-	expandEmptyAnchorToCurrentFile,
-	getWikilinkSuggestions,
-	parseWikilinkContext,
-	type WikilinkContext,
-	type WikilinkSuggestion,
-} from "../wikilink";
+import { createBlockId, type WikilinkSuggestion } from "../wikilink";
 import { openMemoShareModal } from "../share";
 import { buildAttachmentEmbedLink } from "../../utils/embed";
 import { WikilinkSuggestController } from "../../editor/wikilinkSuggest";
@@ -25,6 +17,7 @@ import { insertTextAtCaret } from "../../utils/text";
 import { MemosRandomWalkModal } from "./modals/randomWalkModal";
 import { AttachmentPickerModal } from "./modals/attachmentPickerModal";
 import { PermanentDeleteModal, collectDeletableAttachments } from "./modals/permanentDeleteModal";
+import { ConfirmModal } from "./modals/confirmModal";
 import { MemosFullscreenEditorModal } from "./modals/fullscreenEditorModal";
 import { VoiceRecorder } from "./voiceRecorder";
 
@@ -738,7 +731,7 @@ export class MemosView extends ItemView {
 				setIcon(previewBtn, "eye");
 				previewBtn.removeClass("is-active");
 			}
-			renderPreviewState();
+			void renderPreviewState();
 			textareaEl.focus();
 		});
 		const wikilinkSuggestEl = editorWrapEl.createDiv({ cls: "memos-wikilink-suggest", attr: { hidden: "hidden" } });
@@ -825,7 +818,7 @@ export class MemosView extends ItemView {
 				setIcon(previewBtn, this.isComposerPreview ? "pencil" : "eye");
 				previewBtn.toggleClass("is-active", this.isComposerPreview);
 			}
-			renderPreviewState();
+			void renderPreviewState();
 		});
 		const previewToggle = toolsEl.querySelector(".memos-tool-button:last-child");
 		if (previewToggle instanceof HTMLElement) {
@@ -865,15 +858,15 @@ export class MemosView extends ItemView {
 			this.composerValue = value;
 		});
 
-		renderPreviewState();
+		void renderPreviewState();
 
 		const submitButton = footerEl.createEl("button", {
 			cls: "memos-submit",
 			text: t("view.saveMemo"),
 		});
 		submitButton.setAttribute("aria-label", t("view.saveMemo"));
-		submitButton.addEventListener("click", async () => {
-			await this.saveComposerMemo();
+		submitButton.addEventListener("click", () => {
+			void this.saveComposerMemo();
 		});
 
 		return composerEl;
@@ -1089,7 +1082,7 @@ export class MemosView extends ItemView {
 						"data-day-key": cell.dayKey,
 					},
 				});
-				cellEl.addEventListener("mouseenter", async () => {
+				const showCellPreview = async (): Promise<void> => {
 					cancelHideHeatmapPreview();
 					if (cell.count === 0) {
 						return;
@@ -1118,7 +1111,8 @@ export class MemosView extends ItemView {
 					heatmapPreviewEl.style.left = `${left}px`;
 					heatmapPreviewEl.style.top = `${top}px`;
 					heatmapPreviewEl.addClass("is-visible");
-				});
+				};
+				cellEl.addEventListener("mouseenter", () => void showCellPreview());
 				cellEl.addEventListener("mouseleave", () => {
 					scheduleHideHeatmapPreview();
 				});
@@ -1338,7 +1332,7 @@ export class MemosView extends ItemView {
 				this.updateSelectionToolbar(toolbarEl, textareaEl);
 			});
 		}
-		const divider = toolbarEl.createDiv({ cls: "memos-selection-toolbar-divider" });
+		toolbarEl.createDiv({ cls: "memos-selection-toolbar-divider" });
 		const clearBtn = toolbarEl.createEl("button", {
 			cls: "memos-selection-toolbar-button memos-selection-toolbar-clear",
 			attr: { type: "button", "aria-label": t("view.clearFormat") },
@@ -1483,7 +1477,7 @@ export class MemosView extends ItemView {
 			this.scheduleTimeout(tick, 500);
 		};
 
-		buttonEl.addEventListener("click", async () => {
+		const handleVoiceClick = async (): Promise<void> => {
 			if (busy) {
 				return;
 			}
@@ -1509,7 +1503,8 @@ export class MemosView extends ItemView {
 			} finally {
 				busy = false;
 			}
-		});
+		};
+		buttonEl.addEventListener("click", () => void handleVoiceClick());
 	}
 
 	private async saveVoiceRecording(
@@ -1923,7 +1918,7 @@ export class MemosView extends ItemView {
 		return { all: active, active, archived, deleted };
 	}
 
-	private async purgeDeletedMemos(): Promise<void> {
+	private purgeDeletedMemos(): void {
 		const deletedMemos = this.memos.filter((memo) => Boolean(memo.deletedAt));
 		if (!deletedMemos.length) {
 			new Notice(t("notices.noDeletedMemos"));
@@ -1941,16 +1936,17 @@ export class MemosView extends ItemView {
 			return;
 		}
 
-		const confirmed = window.confirm(t("notices.permanentlyDeleteAllConfirm", deletedMemos.length));
-		if (!confirmed) {
-			return;
-		}
-
-		await this.plugin.permanentlyDeleteMarkedMemos(deletedMemos);
-		await this.finalizePermanentDeletion(deletedMemos.length, false);
+		new ConfirmModal(
+			this.app,
+			t("notices.permanentlyDeleteAllConfirm", deletedMemos.length),
+			async () => {
+				await this.plugin.permanentlyDeleteMarkedMemos(deletedMemos);
+				await this.finalizePermanentDeletion(deletedMemos.length, false);
+			},
+		).open();
 	}
 
-	private async permanentlyDeleteMemo(memo: MemoEntry): Promise<void> {
+	private permanentlyDeleteMemo(memo: MemoEntry): void {
 		if (!memo.deletedAt) {
 			return;
 		}
@@ -1966,13 +1962,14 @@ export class MemosView extends ItemView {
 			return;
 		}
 
-		const confirmed = window.confirm(t("notices.permanentlyDeleteConfirm"));
-		if (!confirmed) {
-			return;
-		}
-
-		await this.plugin.permanentlyDeleteMarkedMemos([memo]);
-		await this.finalizePermanentDeletion(1, true);
+		new ConfirmModal(
+			this.app,
+			t("notices.permanentlyDeleteConfirm"),
+			async () => {
+				await this.plugin.permanentlyDeleteMarkedMemos([memo]);
+				await this.finalizePermanentDeletion(1, true);
+			},
+		).open();
 	}
 
 	private async finalizePermanentDeletion(count: number, single: boolean): Promise<void> {
@@ -2257,7 +2254,7 @@ export class MemosView extends ItemView {
 				setIcon(previewBtn, "eye");
 				previewBtn.removeClass("is-active");
 			}
-			renderPreviewState();
+			void renderPreviewState();
 			textareaEl.focus();
 		});
 
@@ -2274,7 +2271,7 @@ export class MemosView extends ItemView {
 				setIcon(previewBtn, this.isInlineEditorPreview ? "pencil" : "eye");
 				previewBtn.toggleClass("is-active", this.isInlineEditorPreview);
 			}
-			renderPreviewState();
+			void renderPreviewState();
 		});
 		const inlinePreviewToggle = toolsEl.querySelector(".memos-tool-button:last-child");
 		if (inlinePreviewToggle instanceof HTMLElement) {
@@ -2329,8 +2326,8 @@ export class MemosView extends ItemView {
 			text: t("view.saveMemo"),
 			attr: { "aria-label": t("view.saveMemo"), type: "button" },
 		});
-		submitButton.addEventListener("click", async () => {
-			await this.saveInlineEditedMemo(memo);
+		submitButton.addEventListener("click", () => {
+			void this.saveInlineEditedMemo(memo);
 		});
 
 		window.setTimeout(() => {
@@ -2525,8 +2522,6 @@ export class MemosView extends ItemView {
 			if (tagStart < 0) {
 				return;
 			}
-			const before = textareaEl.value.slice(0, tagStart);
-			const after = textareaEl.value.slice(textareaEl.selectionStart ?? tagStart);
 			const replacement = `${tag} `;
 			textareaEl.focus();
 			textareaEl.setSelectionRange(tagStart, textareaEl.selectionStart ?? tagStart);
@@ -2795,7 +2790,7 @@ export class MemosView extends ItemView {
 		const quoted = lines.map((line) => `> ${line}`).join("\n");
 		const block = `> [!quote] ${memo.dayKey} ${memo.createdLabel}\n> \n${quoted}`;
 		this.composerValue = this.composerValue ? `${this.composerValue}\n\n${block}\n` : `${block}\n`;
-		const textareaEl = this.contentEl.querySelector(".memos-composer-input") as HTMLTextAreaElement | null;
+		const textareaEl = this.contentEl.querySelector<HTMLTextAreaElement>(".memos-composer-input");
 		if (textareaEl) {
 			textareaEl.value = this.composerValue;
 			this.autosizeTextarea(textareaEl);
@@ -2831,13 +2826,6 @@ function createLocalTimestampForFileName(date: Date): string {
 
 const WEEKDAY_NAMES_EN = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 const WEEKDAY_NAMES_ZH = ["星期日", "星期一", "星期二", "星期三", "星期四", "星期五", "星期六"];
-const WEEKDAY_SHORT_ZH = ["周日", "周一", "周二", "周三", "周四", "周五", "周六"];
-
-function formatYearlyDayHeading(dayKey: string): string {
-	const date = new Date(`${dayKey}T00:00:00`);
-	const weekday = WEEKDAY_SHORT_ZH[date.getDay()] ?? "";
-	return `${dayKey} ${weekday}`;
-}
 
 function formatReadableDay(dayKey: string): string {
 	const today = new Date();

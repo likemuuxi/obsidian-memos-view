@@ -1342,7 +1342,6 @@ body.is-mobile .memos-inline-editor-input {
 
 .memos-card-content {
 	line-height: 1.6;
-	user-select: text;
 	/* 移动端:Obsidian 在 app 容器上设置了 user-select:none 与 touch-callout:none,
 	   需用 !important 覆盖,否则长按无法呼出文字选择 */
 	-webkit-user-select: text !important;

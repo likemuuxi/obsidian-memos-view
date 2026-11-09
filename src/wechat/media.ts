@@ -99,10 +99,8 @@ export async function saveBinaryAttachment(
 	}
 
 	// createBinary 要求 ArrayBuffer；Buffer 可能指向共享池，必须复制独立副本
-	const arrayBuffer = buffer.buffer.slice(
-		buffer.byteOffset,
-		buffer.byteOffset + buffer.byteLength,
-	) as ArrayBuffer;
+	const arrayBuffer = new ArrayBuffer(buffer.byteLength);
+	new Uint8Array(arrayBuffer).set(buffer);
 	return app.vault.createBinary(targetPath, arrayBuffer);
 }
 

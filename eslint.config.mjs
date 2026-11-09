@@ -12,21 +12,33 @@ export default tseslint.config(
 			parserOptions: {
 				projectService: {
 					allowDefaultProject: [
-						'eslint.config.js',
+						'eslint.config.mjs',
 						'manifest.json'
 					]
 				},
-				tsconfigRootDir: import.meta.dirname,
 				extraFileExtensions: ['.json']
 			},
 		},
 	},
 	...obsidianmd.configs.recommended,
+	{
+		// wechat 集成仅在使用 Node 传输(isNodeTransportAvailable 桌面端)时运行,
+		// 允许该目录使用 Node 内置模块与全局变量
+		files: ["src/wechat/**/*.ts"],
+		languageOptions: {
+			globals: {
+				...globals.node,
+			},
+		},
+		rules: {
+			"import/no-nodejs-modules": "off",
+		},
+	},
 	globalIgnores([
 		"node_modules",
 		"dist",
 		"esbuild.config.mjs",
-		"eslint.config.js",
+		"eslint.config.mjs",
 		"version-bump.mjs",
 		"versions.json",
 		"main.js",

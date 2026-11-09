@@ -48,7 +48,7 @@ export class WechatQrLoginModal extends Modal {
 		app: App,
 		private clientVersion: string,
 		private existingToken: string,
-		private onSuccess: (result: QrLoginSuccess) => void,
+		private onSuccess: (result: QrLoginSuccess) => void | Promise<void>,
 	) {
 		super(app);
 	}
@@ -161,7 +161,7 @@ export class WechatQrLoginModal extends Modal {
 					}
 					this.finished = true;
 					this.setStatus(tr("登录成功", "Logged in"));
-					this.onSuccess({ botToken: token, baseUrl: (resp.baseurl ?? "").trim() });
+					void this.onSuccess({ botToken: token, baseUrl: (resp.baseurl ?? "").trim() });
 					this.close();
 					return;
 				}

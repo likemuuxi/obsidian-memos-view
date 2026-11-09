@@ -92,8 +92,8 @@ const NAMED_ENTITIES: Record<string, string> = {
 
 function decodeEntities(input: string): string {
 	return input
-		.replace(/&#x([0-9a-fA-F]+);/g, (_, hex) => safeFromCodePoint(Number.parseInt(hex, 16)))
-		.replace(/&#(\d+);/g, (_, dec) => safeFromCodePoint(Number.parseInt(dec, 10)))
+		.replace(/&#x([0-9a-fA-F]+);/g, (_, hex: string) => safeFromCodePoint(Number.parseInt(hex, 16)))
+		.replace(/&#(\d+);/g, (_, dec: string) => safeFromCodePoint(Number.parseInt(dec, 10)))
 		.replace(/&([a-zA-Z]+|#39);/g, (full, name: string) => NAMED_ENTITIES[name] ?? full);
 }
 

@@ -127,20 +127,20 @@ export default class MemosViewPlugin extends Plugin {
 		this.registerEvent(this.app.vault.on("rename", (file) => this.handleVaultChange(file)));
 	}
 
-	async onunload(): Promise<void> {
+	onunload(): void {
 		if (this.pendingBoundFileTimer !== null) {
 			window.clearTimeout(this.pendingBoundFileTimer);
 			this.pendingBoundFileTimer = null;
 		}
 
-		await this.wechat?.stop();
+		void this.wechat?.stop();
 
 		const leaves = [
 			...this.app.workspace.getLeavesOfType(VIEW_TYPE_MEMOS),
 			...this.app.workspace.getLeavesOfType(VIEW_TYPE_MEMOS_SIDEBAR),
 		];
 		for (const leaf of leaves) {
-			await leaf.setViewState({ type: "empty" });
+			void leaf.setViewState({ type: "empty" });
 		}
 	}
 
@@ -149,7 +149,9 @@ export default class MemosViewPlugin extends Plugin {
 			boundFilePaths?: string[];
 			maxMemos?: number;
 		};
-		const { boundFilePaths, maxMemos: _legacyMaxMemos, wechat: rawWechat, ...restData } = rawData;
+		const { boundFilePaths, wechat: rawWechat, ...restData } = rawData;
+		// maxMemos 设置已废弃,删除遗留字段避免回写
+		delete restData.maxMemos;
 		const migratedBoundFilePath =
 			restData.boundFilePath ??
 			(boundFilePaths && boundFilePaths.length ? boundFilePaths[0] : "");
@@ -184,7 +186,7 @@ export default class MemosViewPlugin extends Plugin {
 			active: true,
 			state: { boundFilePath },
 		});
-		this.app.workspace.revealLeaf(targetLeaf);
+		void this.app.workspace.revealLeaf(targetLeaf);
 	}
 
 	async activateMemosSidebarView(): Promise<void> {
@@ -199,7 +201,7 @@ export default class MemosViewPlugin extends Plugin {
 			type: VIEW_TYPE_MEMOS_SIDEBAR,
 			active: true,
 		});
-		this.app.workspace.revealLeaf(targetLeaf);
+		void this.app.workspace.revealLeaf(targetLeaf);
 	}
 
 	/** 微信登录状态等外部变化后刷新设置界面；未打开时重建无副作用。 */
@@ -549,10 +551,10 @@ export default class MemosViewPlugin extends Plugin {
 				await this.app.vault.modify(ctx.file, nextFileContent);
 			}
 
-			// 将用户勾选的附件移入回收站(优先系统回收站,不可用时回退 .trash)
+			// 将用户勾选的附件按用户删除偏好移入回收站(FileManager 会遵循「删除文件」设置)
 			for (const attachment of attachments) {
 				try {
-					await this.app.vault.trash(attachment, true);
+					await this.app.fileManager.trashFile(attachment);
 				} catch (error) {
 					console.error("Failed to trash attachment", attachment.path, error);
 				}

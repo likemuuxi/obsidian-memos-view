@@ -130,7 +130,7 @@ export function parseYearlyNoteToMemos(file: TFile, content: string, timestampFo
 			currentDayKey = `${year}-${month}-${day}`;
 			currentDayTimestamp = new Date(`${year}-${month}-${day}T00:00:00`).getTime();
 		} else {
-			currentLines.push(line!);
+			currentLines.push(line);
 		}
 	}
 	flushSection(lines.length);

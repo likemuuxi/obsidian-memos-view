@@ -5,7 +5,6 @@ import {
 	parseMemoBlock,
 	type MemoStatusKey,
 	type MemoStatusState,
-	serializeMemoBlock,
 	setMemoStatusValue,
 	splitFrontmatter,
 } from "./parser";

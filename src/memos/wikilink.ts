@@ -41,7 +41,7 @@ export interface WikilinkContext {
 
 export function parseWikilinkContext(text: string, cursor: number): WikilinkContext | null {
 	const textBeforeCursor = text.slice(0, cursor);
-	const match = textBeforeCursor.match(/(?:^|[^\[])(\[\[)([^\]]*)$/);
+	const match = textBeforeCursor.match(/(?:^|[^[])(\[\[)([^\]]*)$/);
 	if (!match || match.index == null) {
 		return null;
 	}

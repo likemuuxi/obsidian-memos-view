@@ -706,7 +706,7 @@ function t(path: string, ...args: (string | number)[]): string {
 	args.forEach((arg) => {
 		value = value!.replace("{}", String(arg));
 	});
-	return value!;
+	return value;
 }
 
 export { t, type TranslationStrings };

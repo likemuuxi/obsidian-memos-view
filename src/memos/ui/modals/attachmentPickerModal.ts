@@ -99,7 +99,7 @@ export class AttachmentPickerModal extends Modal {
 			const thumbEl = itemEl.createDiv({ cls: "memos-attachment-picker-thumb" });
 			this.renderThumbnail(thumbEl, file);
 
-			const nameEl = itemEl.createDiv({ cls: "memos-attachment-picker-name", text: file.name });
+			itemEl.createDiv({ cls: "memos-attachment-picker-name", text: file.name });
 			itemEl.title = file.path;
 		}
 	}
