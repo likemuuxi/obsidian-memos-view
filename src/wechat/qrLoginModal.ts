@@ -4,9 +4,35 @@
 
 import type { App } from "obsidian";
 import { Modal, Setting } from "obsidian";
-import { toCanvas } from "qrcode";
+import qrcode from "qrcode-generator";
 import { isZhLocale } from "../i18n";
 import { fetchBotQrcode, pollQrcodeStatus } from "./ilink";
+
+/** 用 qrcode-generator 把内容画到 canvas（替代 qrcode 包，体积缩小约 8 倍）。 */
+function drawQrToCanvas(canvas: HTMLCanvasElement, content: string, size = 220, margin = 2): void {
+	const qr = qrcode(0, "M");
+	qr.addData(content);
+	qr.make();
+	const count = qr.getModuleCount();
+	const scale = Math.max(1, Math.floor(size / (count + margin * 2)));
+	const dim = scale * (count + margin * 2);
+	canvas.width = dim;
+	canvas.height = dim;
+	const ctx = canvas.getContext("2d");
+	if (!ctx) {
+		return;
+	}
+	ctx.fillStyle = "#ffffff";
+	ctx.fillRect(0, 0, dim, dim);
+	ctx.fillStyle = "#000000";
+	for (let row = 0; row < count; row += 1) {
+		for (let col = 0; col < count; col += 1) {
+			if (qr.isDark(row, col)) {
+				ctx.fillRect((margin + col) * scale, (margin + row) * scale, scale, scale);
+			}
+		}
+	}
+}
 
 export interface QrLoginSuccess {
 	botToken: string;
@@ -115,7 +141,7 @@ export class WechatQrLoginModal extends Modal {
 		if (this.abort.signal.aborted) {
 			return;
 		}
-		await toCanvas(this.canvas, qr.qrcode_img_content, { width: 220, margin: 2 });
+		drawQrToCanvas(this.canvas, qr.qrcode_img_content);
 		this.setStatus(tr("请使用微信扫一扫", "Scan with WeChat"));
 		this.pollBase = undefined;
 		this.verifyCode = "";

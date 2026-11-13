@@ -621,18 +621,24 @@
 	flex: 1;
 	min-width: 120px;
 	max-width: 280px;
-	padding: 6px 10px;
-	border: 0;
-	border-radius: 8px;
+	padding: 6px 12px;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 10px;
 	background: var(--background-secondary);
 	box-shadow: none !important;
 	color: var(--text-normal);
 	font-size: 13px;
+	transition: border-color 100ms ease, box-shadow 100ms ease;
+}
+
+.memos-search::placeholder {
+	color: var(--text-faint);
 }
 
 .memos-search:focus {
 	outline: none;
-	box-shadow: none !important;
+	border-color: var(--interactive-accent);
+	box-shadow: 0 0 0 2px color-mix(in srgb, var(--interactive-accent) 20%, transparent) !important;
 }
 
 .memos-composer {
@@ -1178,12 +1184,13 @@ body.is-mobile .memos-inline-editor-input {
 	width: 36px;
 	height: 36px;
 	padding: 0;
-	border: none;
+	/* 配色与滚动日期胶囊（.memos-sticky-day-head）一致，形状保持圆形 */
 	border-radius: 50%;
-	/* 强制不透明的中性色:图片背景主题会把 --background-* 变量改成半透明,导致按钮透底 */
-	background: #f0f0f0 !important;
-	box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2) !important;
-	color: #555555 !important;
+	/* !important：防止主题/Obsidian 全局 button 样式覆盖背景色 */
+	background: var(--background-secondary) !important;
+	border: 1px solid var(--background-modifier-border);
+	box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08) !important;
+	color: var(--text-muted) !important;
 	display: inline-flex;
 	align-items: center;
 	justify-content: center;
@@ -1191,7 +1198,7 @@ body.is-mobile .memos-inline-editor-input {
 	opacity: 0;
 	pointer-events: none;
 	transform: translate(-50%, 8px);
-	transition: opacity 150ms ease, transform 150ms ease;
+	transition: opacity 150ms ease, transform 150ms ease, color 100ms ease, border-color 100ms ease;
 }
 
 .memos-back-to-top.is-visible {
@@ -1201,19 +1208,9 @@ body.is-mobile .memos-inline-editor-input {
 }
 
 .memos-back-to-top:hover {
-	background: #e4e4e4 !important;
-	color: #222222 !important;
-}
-
-/* 暗色主题下用深色不透明背景 */
-.theme-dark .memos-back-to-top {
-	background: #2c2c2c !important;
-	color: #aaaaaa !important;
-}
-
-.theme-dark .memos-back-to-top:hover {
-	background: #3a3a3a !important;
-	color: #eeeeee !important;
+	background: var(--background-secondary) !important;
+	border-color: var(--interactive-accent);
+	color: var(--interactive-accent) !important;
 }
 
 .memos-back-to-top svg {

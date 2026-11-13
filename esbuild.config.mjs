@@ -2,7 +2,6 @@ import esbuild from "esbuild";
 import process from "process";
 import { builtinModules } from 'node:module';
 import fs from "node:fs/promises";
-import { nodeTurndownPatch } from "./esbuild.turndown-patch.mjs";
 
 const banner =
 `/*
@@ -62,7 +61,7 @@ const context = await esbuild.context({
 	target: "es2018",
 	// .wasm 文件内联为 base64 文本（供 silk.ts 生成 blob URL）
 	loader: { ".wasm": "base64" },
-	plugins: [silkWasmUrlPatch, nodeTurndownPatch],
+	plugins: [silkWasmUrlPatch],
 	logLevel: "info",
 	sourcemap: prod ? false : "inline",
 	treeShaking: true,

@@ -99,11 +99,11 @@ export default class MemosViewPlugin extends Plugin {
 		});
 
 		if (
-			isNodeTransportAvailable() &&
-			this.settings.wechat.botToken.trim()
-		) {
-			void this.wechat.start();
-		}
+		isNodeTransportAvailable() &&
+		this.settings.wechat.botToken.trim()
+	) {
+		void this.wechat.start();
+	}
 
 		this.settingTab = new MemosSettingTab(this.app, this);
 		this.addSettingTab(this.settingTab);
@@ -321,13 +321,9 @@ export default class MemosViewPlugin extends Plugin {
 			return `${headingLine}\n\n${payload}\n\n${body}`;
 		}
 		const afterHeading = headingIndex + headingLine.length;
-		const headingLevel = headingLine.match(/^(#{1,6})\s/)?.[1]?.length ?? 2;
-		const nextHeadingPattern = new RegExp(`\\n#{1,${headingLevel}} `);
-		const nextHeadingMatch = body.slice(afterHeading).search(nextHeadingPattern);
-		const sectionEnd = nextHeadingMatch === -1 ? body.length : afterHeading + nextHeadingMatch;
-		const before = body.slice(0, sectionEnd);
-		const after = body.slice(sectionEnd);
-		return `${before}\n${payload}\n${after}`;
+		// 插到标题行紧后面（最新在前）：时间戳粒度为分钟，同一分钟内的
+		// 多条 memo 排序键相同，展示顺序由文件内顺序决定，必须新memo在前。
+		return `${body.slice(0, afterHeading)}\n${payload}\n${body.slice(afterHeading)}`;
 	}
 
 	async appendMemoToToday(
@@ -437,13 +433,11 @@ export default class MemosViewPlugin extends Plugin {
 						nextBody = `# ${year}\n\n${dayHeading}\n${sectionBlock}\n${normalizedBody ? normalizedBody : ""}`.trim();
 					}
 				} else {
-					const afterHeading = headingIndex + dayHeading.length;
-					const nextHeadingMatch = normalizedBody.slice(afterHeading).search(/\n## /);
-					const sectionEnd = nextHeadingMatch === -1 ? normalizedBody.length : afterHeading + nextHeadingMatch;
-					const beforeSection = normalizedBody.slice(0, sectionEnd);
-					const afterSection = normalizedBody.slice(sectionEnd);
-					nextBody = `${beforeSection}\n${payload}\n${afterSection}`;
-				}
+				const afterHeading = headingIndex + dayHeading.length;
+				// 插到日期标题紧后面（最新在前）：时间戳粒度为分钟，同一分钟内
+				// 多条 memo 排序键相同，顺序由文件内位置决定，必须新 memo 在前。
+				nextBody = `${normalizedBody.slice(0, afterHeading)}\n${payload}\n${normalizedBody.slice(afterHeading)}`;
+			}
 				const nextFileContent = composeFileContent(frontmatter, nextBody);
 				this.suppressVaultRefresh(existing.path);
 				await this.app.vault.modify(existing, nextFileContent);
